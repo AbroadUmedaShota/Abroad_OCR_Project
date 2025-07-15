@@ -35,6 +35,7 @@ def run_ocr(image_paths, output_csv_path=None):
             for page_result in result:
                 if page_result is not None:
                     for line in page_result:
+                        print(f"DEBUG: line = {line}") # Debug print
                         # line format: [[x0, y0], [x1, y1], [x2, y2], [x3, y3]], (text, confidence)
                         bbox = line[0]
                         text = line[1][0]

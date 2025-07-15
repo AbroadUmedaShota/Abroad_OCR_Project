@@ -32,14 +32,11 @@ def run_ocr(image_paths, output_csv_path=None):
         result = ocr.predict(img_path)
         block_id = 0
         if result is not None:
-            for page_result in result:
-                if page_result is not None:
-                    for line in page_result:
-                        print(f"DEBUG: line = {line}") # Debug print
-                        # line format: [[x0, y0], [x1, y1], [x2, y2], [x3, y3]], (text, confidence)
-                        bbox = line[0]
-                        text = line[1][0]
-                        confidence = line[1][1]
+            for line in result[0]: # Assuming result[0] contains the list of blocks for the current page
+                # line format: [[x0, y0], [x1, y1], [x2, y2], [x3, y3]], (text, confidence)
+                bbox = line[0]
+                text = line[1][0]
+                confidence = line[1][1]
 
                         # Calculate min/max x/y for bounding box
                         x_coords = [p[0] for p in bbox]

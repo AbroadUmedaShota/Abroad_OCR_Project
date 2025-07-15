@@ -1,6 +1,6 @@
 import argparse
 import fitz  # PyMuPDF
-from paddleocr import PaddleOCR, build_logger
+from paddleocr import PaddleOCR
 import os
 
 # Initialize PaddleOCR (this can be configured later for specific models)

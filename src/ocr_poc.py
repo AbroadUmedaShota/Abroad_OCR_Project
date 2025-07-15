@@ -29,7 +29,7 @@ def run_ocr(image_paths, output_csv_path=None):
     all_ocr_results = []
     for page_num, img_path in enumerate(image_paths):
         print(f"--- Processing {img_path} ---")
-        result = ocr.ocr(img_path, cls=True)
+        result = ocr.predict(img_path)
         block_id = 0
         for idx in range(len(result)):
             res = result[idx]

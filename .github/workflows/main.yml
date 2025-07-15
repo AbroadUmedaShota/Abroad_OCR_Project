@@ -20,7 +20,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Run OCR PoC
-        run: npm run ocr-poc -- tests/test.pdf # Assuming a test.pdf exists for PoC
+        run: npm run ocr-poc -- tests/test.pdf
+      - name: Calculate CER
+        run: npm run calculate-cer -- tests/test.pdf_ocr_results.csv tests/test.txt
 
   test:
     runs-on: ubuntu-latest

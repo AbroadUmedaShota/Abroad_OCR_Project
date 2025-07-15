@@ -2,3 +2,4 @@ PyMuPDF
 paddleocr
 paddlepaddle
 setuptools
+python-Levenshtein

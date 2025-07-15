@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "ocr-poc": "python src/ocr_poc.py"
+    "ocr-poc": "python src/ocr_poc.py",
+    "calculate-cer": "python scripts/calculate_cer.py"
   },
   "repository": {
     "type": "git",

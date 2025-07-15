@@ -13,6 +13,7 @@ def pdf_to_images(pdf_path, output_folder="temp_images"):
         os.makedirs(output_folder)
 
     doc = fitz.open(pdf_path)
+    print(f"PDF has {len(doc)} pages.")
     image_paths = []
     for i in range(len(doc)):
         page = doc.load_page(i)

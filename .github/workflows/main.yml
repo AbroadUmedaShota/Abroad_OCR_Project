@@ -13,8 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Dummy build
-        run: echo "Building..."
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run OCR PoC
+        run: npm run ocr-poc -- tests/test.pdf # Assuming a test.pdf exists for PoC
 
   test:
     runs-on: ubuntu-latest

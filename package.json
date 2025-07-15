@@ -1,0 +1,24 @@
+{
+  "name": "02-5_abocr_tool_project",
+  "version": "1.0.0",
+  "description": "このプロジェクトは、機微情報を含むPDF文書を完全オフライン環境でOCR処理し、検索可能なPDFへ変換するアプリケーションです。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbroadUmedaShota/Abroad_OCR_Project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AbroadUmedaShota/Abroad_OCR_Project/issues"
+  },
+  "homepage": "https://github.com/AbroadUmedaShota/Abroad_OCR_Project#readme"
+}

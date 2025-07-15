@@ -7,7 +7,7 @@ import os
 # For a basic PoC, we'll use the default English model.
 # For Japanese, it would be `lang='japan'` and potentially `use_gpu=True` if available.
 # logger = build_logger(name="OCR_PoC", log_file="ocr_poc.log")
-ocr = PaddleOCR(use_textline_orientation=True, lang='en')
+ocr = PaddleOCR(use_textline_orientation=True, lang='japan')
 
 def pdf_to_images(pdf_path, output_folder="temp_images"):
     """Converts each page of a PDF into an image."""

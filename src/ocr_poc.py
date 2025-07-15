@@ -38,24 +38,24 @@ def run_ocr(image_paths, output_csv_path=None):
                 text = line[1][0]
                 confidence = line[1][1]
 
-                        # Calculate min/max x/y for bounding box
-                        x_coords = [p[0] for p in bbox]
-                        y_coords = [p[1] for p in bbox]
-                        x0, y0 = min(x_coords), min(y_coords)
-                        x1, y1 = max(x_coords), max(y_coords)
+                # Calculate min/max x/y for bounding box
+                x_coords = [p[0] for p in bbox]
+                y_coords = [p[1] for p in bbox]
+                x0, y0 = min(x_coords), min(y_coords)
+                x1, y1 = max(x_coords), max(y_coords)
 
-                        all_ocr_results.append({
-                            'page': page_num + 1,
-                            'block_id': block_id,
-                            'x0': x0,
-                            'y0': y0,
-                            'x1': x1,
-                            'y1': y1,
-                            'text': text,
-                            'confidence': confidence
-                        })
-                        print(f"Page {page_num + 1}, Block {block_id}: {text} (Conf: {confidence:.2f})")
-                        block_id += 1
+                all_ocr_results.append({
+                    'page': page_num + 1,
+                    'block_id': block_id,
+                    'x0': x0,
+                    'y0': y0,
+                    'x1': x1,
+                    'y1': y1,
+                    'text': text,
+                    'confidence': confidence
+                })
+                print(f"Page {page_num + 1}, Block {block_id}: {text} (Conf: {confidence:.2f})")
+                block_id += 1
         print("\n")
 
     if output_csv_path:

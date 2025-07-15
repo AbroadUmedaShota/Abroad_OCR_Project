@@ -1,3 +1,4 @@
 PyMuPDF
 paddleocr
 paddlepaddle
+setuptools

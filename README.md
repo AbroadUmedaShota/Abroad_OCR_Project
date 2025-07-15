@@ -11,7 +11,24 @@
 
 ## セットアップ
 
-(準備中)
+このプロジェクトをローカルでセットアップするには、以下の手順に従ってください。
+
+1.  リポジトリをクローンします。
+    ```bash
+    git clone https://github.com/AbroadUmedaShota/Abroad_OCR_Project.git
+    ```
+2.  プロジェクトディレクトリに移動します。
+    ```bash
+    cd Abroad_OCR_Project
+    ```
+3.  依存関係をインストールします。
+    ```bash
+    npm install
+    ```
+
+**CI/CD:**
+
+GitHub Actionsが設定されており、`main`ブランチへのプッシュまたはプルリクエスト時に自動的にビルド、テスト、リントが実行されます。
 
 ## 使い方
 

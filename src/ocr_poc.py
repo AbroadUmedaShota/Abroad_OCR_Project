@@ -31,9 +31,7 @@ def run_ocr(image_paths, output_csv_path=None):
         print(f"--- Processing {img_path} ---")
         result = ocr.predict(img_path)
         block_id = 0
-        for idx in range(len(result)):
-            res = result[idx]
-            for line in res:
+        for line in result:
                 # line format: [[x0, y0], [x1, y1], [x2, y2], [x3, y3]], (text, confidence)
                 bbox = line[0]
                 text = line[1][0]

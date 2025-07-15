@@ -3,6 +3,7 @@ import fitz  # PyMuPDF
 from paddleocr import PaddleOCR
 import os
 import csv
+import zipfile
 
 ocr = PaddleOCR(use_textline_orientation=True, lang='japan')
 
@@ -73,6 +74,8 @@ def main():
                         help="Folder to save intermediate images.")
     parser.add_argument("--no-csv", action="store_true",
                         help="Do not output OCR results to CSV file.")
+    parser.add_argument("--zip", action="store_true",
+                        help="Archive PDF and CSV into a single ZIP file.")
     args = parser.parse_args()
 
     if not os.path.exists(args.pdf_path):
@@ -92,6 +95,15 @@ def main():
 
     print("Running OCR on extracted images...")
     run_ocr(image_paths, output_csv_path)
+
+    if args.zip:
+        zip_file_name = os.path.splitext(args.pdf_path)[0] + ".zip"
+        with zipfile.ZipFile(zip_file_name, 'w') as zf:
+            zf.write(args.pdf_path, os.path.basename(args.pdf_path))
+            if output_csv_path and os.path.exists(output_csv_path):
+                zf.write(output_csv_path, os.path.basename(output_csv_path))
+        print(f"Archived PDF and CSV to {zip_file_name}")
+
     print("OCR PoC finished.")
 
 if __name__ == "__main__":

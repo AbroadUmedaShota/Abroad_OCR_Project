@@ -23,7 +23,7 @@
     ```
 3.  依存関係をインストールします。
     ```bash
-    npm install
+    pip install -r requirements.txt
     ```
 
 **CI/CD:**
@@ -32,7 +32,28 @@ GitHub Actionsが設定されており、`main`ブランチへのプッシュま
 
 ## 使い方
 
-(準備中)
+PDFファイルに対してOCRを実行するには、以下のコマンドを使用します。
+
+```bash
+python src/ocr_poc.py <PDFファイルのパス>
+```
+
+例:
+```bash
+python src/ocr_poc.py tests/test.pdf
+```
+
+OCR結果は、入力PDFファイルと同じディレクトリに`<PDFファイル名>_ocr_results.csv`として出力されます。
+
+### オプション
+
+*   `--no-csv`: OCR結果をCSVファイルに出力しません。
+*   `--zip`: PDFファイルとOCR結果のCSVファイルをZIPアーカイブにまとめます。
+
+例:
+```bash
+python src/ocr_poc.py tests/test.pdf --zip
+```
 
 ## 開発
 

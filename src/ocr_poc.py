@@ -30,14 +30,28 @@ def run_ocr(image_paths, output_csv_path=None):
     for page_num, img_path in enumerate(image_paths):
         print(f"--- Processing {img_path} ---")
         result = ocr.predict(img_path)
+        print(f"DEBUG: Full result for {img_path} = {result}") # Full result debug print
         block_id = 0
-        if result is not None:
+        if result is not None and len(result) > 0 and result[0] is not None:
             for line in result[0]: # Assuming result[0] contains the list of blocks for the current page
                 print(f"DEBUG: line = {line}") # Debug print
                 # line format: [[x0, y0], [x1, y1], [x2, y2], [x3, y3]], (text, confidence)
+                
+                # Defensive check for line structure
+                if not (isinstance(line, list) and len(line) == 2):
+                    print(f"DEBUG: Skipping malformed line (not a list of 2): {line}")
+                    continue
+                
                 bbox = line[0]
-                text = line[1][0]
-                confidence = line[1][1]
+                text_info = line[1]
+
+                # Defensive check for text_info structure
+                if not (isinstance(text_info, tuple) and len(text_info) == 2):
+                    print(f"DEBUG: Skipping malformed text_info (not a tuple of 2): {text_info}")
+                    continue
+
+                text = text_info[0]
+                confidence = text_info[1]
 
                 # Calculate min/max x/y for bounding box
                 x_coords = [p[0] for p in bbox]

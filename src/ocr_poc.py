@@ -28,6 +28,8 @@ def run_ocr(image_paths, output_csv_path=None):
     ocr_engine_1 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True)
     # Simulate another OCR engine (e.g., Tesseract or Mistral-OCR LoRA in future)
     ocr_engine_2 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True) # Placeholder for another engine
+    # Placeholder for Mistral-OCR LoRA
+    ocr_engine_3 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True) # Placeholder for LoRA model
 
     print("DEBUG: OCR Engines initialized inside run_ocr.")
 
@@ -38,19 +40,39 @@ def run_ocr(image_paths, output_csv_path=None):
         # Simulate results from multiple engines
         result_engine_1 = ocr_engine_1.ocr(img_path, det=True, rec=True, cls=True)
         result_engine_2 = ocr_engine_2.ocr(img_path, det=True, rec=True, cls=True) # Placeholder result
+        result_engine_3 = ocr_engine_3.ocr(img_path, det=True, rec=True, cls=True) # Placeholder result for LoRA
 
-        # Ensemble Voting Framework
-        # For simplicity, we'll just use result_engine_1 for now, but this is where voting logic would go.
-        # In a real scenario, you'd compare results from result_engine_1 and result_engine_2
-        # based on confidence scores and other metrics.
-        final_result_for_page = result_engine_1
+        # Ensemble Voting Framework (Weighted Voting Fusion)
+        # For simplicity, we'll choose the result with the highest confidence for each line.
+        # In a real scenario, weights would be applied (conf * weight_engine) and then compared.
+        final_result_for_page = []
+        if result_engine_1 and result_engine_1[0]:
+            for i, line_info_1 in enumerate(result_engine_1[0]):
+                best_line_info = line_info_1
+                best_confidence = line_info_1[1][1]
+
+                # Compare with engine 2 (if available and has results for this line)
+                if result_engine_2 and result_engine_2[0] and i < len(result_engine_2[0]):
+                    line_info_2 = result_engine_2[0][i]
+                    if line_info_2[1][1] > best_confidence:
+                        best_line_info = line_info_2
+                        best_confidence = line_info_2[1][1]
+                
+                # Compare with engine 3 (LoRA) (if available and has results for this line)
+                if result_engine_3 and result_engine_3[0] and i < len(result_engine_3[0]):
+                    line_info_3 = result_engine_3[0][i]
+                    if line_info_3[1][1] > best_confidence:
+                        best_line_info = line_info_3
+                        best_confidence = line_info_3[1][1]
+                
+                final_result_for_page.append(best_line_info)
         
-        if final_result_for_page is None or not final_result_for_page or not final_result_for_page[0]:
+        if not final_result_for_page:
             print(f"DEBUG: No valid OCR results found for {img_path}")
             continue
 
         block_id = 0 # Initialize block_id here
-        for line_info in final_result_for_page[0]:
+        for line_info in final_result_for_page:
             print(f"DEBUG: Processing line_info (type: {type(line_info)}): {repr(line_info)}")
             if not (isinstance(line_info, list) and len(line_info) == 2):
                 continue

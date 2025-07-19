@@ -28,8 +28,11 @@ def run_ocr(image_paths, output_csv_path=None):
     ocr_engine_1 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True)
     # Simulate another OCR engine (e.g., Tesseract or Mistral-OCR LoRA in future)
     ocr_engine_2 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True) # Placeholder for another engine
+<<<<<<< HEAD
     # Placeholder for Mistral-OCR LoRA
     ocr_engine_3 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True) # Placeholder for LoRA model
+=======
+>>>>>>> origin/main
 
     print("DEBUG: OCR Engines initialized inside run_ocr.")
 
@@ -40,6 +43,7 @@ def run_ocr(image_paths, output_csv_path=None):
         # Simulate results from multiple engines
         result_engine_1 = ocr_engine_1.ocr(img_path, det=True, rec=True, cls=True)
         result_engine_2 = ocr_engine_2.ocr(img_path, det=True, rec=True, cls=True) # Placeholder result
+<<<<<<< HEAD
         result_engine_3 = ocr_engine_3.ocr(img_path, det=True, rec=True, cls=True) # Placeholder result for LoRA
 
         # Ensemble Voting Framework (Weighted Voting Fusion)
@@ -68,11 +72,25 @@ def run_ocr(image_paths, output_csv_path=None):
                 final_result_for_page.append(best_line_info)
         
         if not final_result_for_page:
+=======
+
+        # Ensemble Voting Framework
+        # For simplicity, we'll just use result_engine_1 for now, but this is where voting logic would go.
+        # In a real scenario, you'd compare results from result_engine_1 and result_engine_2
+        # based on confidence scores and other metrics.
+        final_result_for_page = result_engine_1
+        
+        if final_result_for_page is None or not final_result_for_page or not final_result_for_page[0]:
+>>>>>>> origin/main
             print(f"DEBUG: No valid OCR results found for {img_path}")
             continue
 
         block_id = 0 # Initialize block_id here
+<<<<<<< HEAD
         for line_info in final_result_for_page:
+=======
+        for line_info in final_result_for_page[0]:
+>>>>>>> origin/main
             print(f"DEBUG: Processing line_info (type: {type(line_info)}): {repr(line_info)}")
             if not (isinstance(line_info, list) and len(line_info) == 2):
                 continue

@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 feat: Implement LoRA Fine-tuning and Accuracy Review
+=======
+feat: Implement Ensemble Voting and KenLM Correction
+>>>>>>> origin/main

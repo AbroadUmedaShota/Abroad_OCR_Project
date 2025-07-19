@@ -1,1 +1,1 @@
-feat: Implement PDF to image and PP-OCRv5 CLI PoC
+feat: Integrate DBNet++ and CER Measurement

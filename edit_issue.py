@@ -1,18 +1,17 @@
+
 import subprocess
 
 issue_number = "8"
-remove_label = "status: planning"
-add_label = "status: implementing"
+assignee = "@me"
+labels = ["type: feature", "status: planning"]
 
-command = [
-    "gh", "issue", "edit", issue_number,
-    "--remove-label", remove_label,
-    "--add-label", add_label
-]
+command = ["gh", "issue", "edit", issue_number, "--add-assignee", assignee]
+for label in labels:
+    command.extend(["--add-label", label])
 
 try:
     result = subprocess.run(command, capture_output=True, text=True, check=True)
-    print(f"Successfully updated labels for issue #{issue_number}")
+    print(f"Successfully edited issue #{issue_number}")
     print("Stdout:", result.stdout)
     print("Stderr:", result.stderr)
 except subprocess.CalledProcessError as e:

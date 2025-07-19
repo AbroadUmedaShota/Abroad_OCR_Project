@@ -32,7 +32,23 @@ GitHub Actionsが設定されており、`main`ブランチへのプッシュま
 
 ## 使い方
 
-(準備中)
+現在、Proof of Concept (PoC) として、コマンドラインインターフェース (CLI) ツールが利用可能です。
+
+**基本的な使い方:**
+
+```bash
+python src/ocr_poc.py [PDFファイルへのパス]
+```
+
+このコマンドは、指定されたPDFファイルを処理し、同じディレクトリに以下のファイルを生成します:
+
+-   `[元のPDF名]_searchable.pdf`: OCRテキストが埋め込まれた検索可能なPDF。
+-   `[元のPDF名]_ocr_results.csv`: OCR結果の詳細なCSVファイル。
+
+**オプション:**
+
+-   `--no-csv`: CSVファイルを出力しません。
+-   `--zip`: 生成されたPDFとCSVファイルをZIPアーカイブにまとめます。
 
 ## 開発
 

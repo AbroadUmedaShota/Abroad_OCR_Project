@@ -90,7 +90,6 @@ def run_ocr(image_paths, output_csv_path=None):
 def create_searchable_pdf(original_pdf_path, ocr_results, output_pdf_path):
     """Creates a searchable PDF by adding an invisible text layer to the original PDF."""
     doc = fitz.open(original_pdf_path)
-    font_path = "C:/Windows/Fonts/msgothic.ttc"
 
     for result in ocr_results:
         page_num = result['page']
@@ -109,10 +108,9 @@ def create_searchable_pdf(original_pdf_path, ocr_results, output_pdf_path):
             
             rect = fitz.Rect(x0, y0, x1, y1)
 
-            page.insert_font(fontname="J-Gothic", fontfile=font_path)
             page.insert_textbox(rect, 
                                 result['text'], 
-                                fontname="J-Gothic",
+                                fontname="cjk",
                                 fontsize=0,
                                 render_mode=3)
 

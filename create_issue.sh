@@ -1,1 +1,1 @@
-gh issue create --title "feat: Implement PDF to image conversion and PP-OCRv5 CLI PoC" --body-file C:/共有フォルダ/WorkSpace/【00.NewTopics】/02_AbOCR_Tool_Project/02-5_/sprint1_issue_body.md --label "type: feature"
+gh issue create --title "$(cat C:/SharedFolder/WorkSpace/【00.NewTopics】/02_AbOCR_Tool_Project/02-5_AbOCR_Tool_Project/issue_title.txt)" --body-file C:/SharedFolder/WorkSpace/【00.NewTopics】/02_AbOCR_Tool_Project/02-5_AbOCR_Tool_Project/issue_body.txt

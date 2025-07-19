@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 feat: Integrate DBNet++ and Implement CER Measurement
+=======
+feat: Integrate DBNet++ and CER Measurement
+>>>>>>> origin/main

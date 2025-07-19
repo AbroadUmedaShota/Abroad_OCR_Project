@@ -27,13 +27,21 @@ def pdf_to_images(pdf_path, output_folder="temp_images"):
 def run_ocr(image_paths, output_csv_path=None):
     """Runs OCR on a list of image paths and returns the structured results."""
     # Initialize PaddleOCR within the function to ensure models are loaded correctly.
+<<<<<<< HEAD
     ocr = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True)
+=======
+    ocr = PaddleOCR(use_angle_cls=True, lang='japan')
+>>>>>>> origin/main
     print("DEBUG: PaddleOCR initialized inside run_ocr.")
 
     all_ocr_results = []
     for page_num, img_path in enumerate(image_paths):
         print(f"--- Processing {img_path} ---")
+<<<<<<< HEAD
         result = ocr.ocr(img_path, det=True, rec=True, cls=True)
+=======
+        result = ocr.ocr(img_path)
+>>>>>>> origin/main
         
         if result is None or not result or not result[0]:
             print(f"DEBUG: No valid OCR results found for {img_path}")

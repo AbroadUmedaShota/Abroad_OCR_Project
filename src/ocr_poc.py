@@ -27,19 +27,19 @@ def pdf_to_images(pdf_path, output_folder="temp_images"):
 def run_ocr(image_paths, output_csv_path=None):
     """Runs OCR on a list of image paths and returns the structured results."""
     # Initialize PaddleOCR within the function to ensure models are loaded correctly.
-    ocr = PaddleOCR(use_angle_cls=True, lang='japan')
+    ocr = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True)
     print("DEBUG: PaddleOCR initialized inside run_ocr.")
 
     all_ocr_results = []
     for page_num, img_path in enumerate(image_paths):
         print(f"--- Processing {img_path} ---")
-        result = ocr.ocr(img_path)
+        result = ocr.ocr(img_path, det=True, rec=True, cls=True)
         
         if result is None or not result or not result[0]:
             print(f"DEBUG: No valid OCR results found for {img_path}")
             continue
 
-        block_id = 0
+        block_id = 0 # Initialize block_id here
         for line_info in result[0]:
             print(f"DEBUG: Processing line_info (type: {type(line_info)}): {repr(line_info)}")
             if not (isinstance(line_info, list) and len(line_info) == 2):
@@ -54,6 +54,7 @@ def run_ocr(image_paths, output_csv_path=None):
 
             text, confidence = text_info
 
+            # Convert bbox to x0, y0, x1, y1 format
             x_coords = [p[0] for p in bbox]
             y_coords = [p[1] for p in bbox]
             x0, y0 = min(x_coords), min(y_coords)

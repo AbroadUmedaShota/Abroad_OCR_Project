@@ -1,5 +1,3 @@
-
-
 import argparse
 import fitz  # PyMuPDF
 from paddleocr import PaddleOCR
@@ -27,28 +25,32 @@ def pdf_to_images(pdf_path, output_folder="temp_images"):
 def run_ocr(image_paths, output_csv_path=None):
     """Runs OCR on a list of image paths and returns the structured results."""
     # Initialize PaddleOCR within the function to ensure models are loaded correctly.
-<<<<<<< HEAD
-    ocr = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True)
-=======
-    ocr = PaddleOCR(use_angle_cls=True, lang='japan')
->>>>>>> origin/main
-    print("DEBUG: PaddleOCR initialized inside run_ocr.")
+    ocr_engine_1 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True)
+    # Simulate another OCR engine (e.g., Tesseract or Mistral-OCR LoRA in future)
+    ocr_engine_2 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True) # Placeholder for another engine
+
+    print("DEBUG: OCR Engines initialized inside run_ocr.")
 
     all_ocr_results = []
     for page_num, img_path in enumerate(image_paths):
         print(f"--- Processing {img_path} ---")
-<<<<<<< HEAD
-        result = ocr.ocr(img_path, det=True, rec=True, cls=True)
-=======
-        result = ocr.ocr(img_path)
->>>>>>> origin/main
+
+        # Simulate results from multiple engines
+        result_engine_1 = ocr_engine_1.ocr(img_path, det=True, rec=True, cls=True)
+        result_engine_2 = ocr_engine_2.ocr(img_path, det=True, rec=True, cls=True) # Placeholder result
+
+        # Ensemble Voting Framework
+        # For simplicity, we'll just use result_engine_1 for now, but this is where voting logic would go.
+        # In a real scenario, you'd compare results from result_engine_1 and result_engine_2
+        # based on confidence scores and other metrics.
+        final_result_for_page = result_engine_1
         
-        if result is None or not result or not result[0]:
+        if final_result_for_page is None or not final_result_for_page or not final_result_for_page[0]:
             print(f"DEBUG: No valid OCR results found for {img_path}")
             continue
 
         block_id = 0 # Initialize block_id here
-        for line_info in result[0]:
+        for line_info in final_result_for_page[0]:
             print(f"DEBUG: Processing line_info (type: {type(line_info)}): {repr(line_info)}")
             if not (isinstance(line_info, list) and len(line_info) == 2):
                 continue
@@ -61,6 +63,12 @@ def run_ocr(image_paths, output_csv_path=None):
                 continue
 
             text, confidence = text_info
+
+            # KenLM Correction Framework
+            # This is a placeholder for KenLM correction. In a real scenario,
+            # you would load a KenLM model and apply it to the 'text' variable.
+            corrected_text = text # For now, no correction is applied
+            print(f"DEBUG: Original text: {text}, Corrected text: {corrected_text}")
 
             # Convert bbox to x0, y0, x1, y1 format
             x_coords = [p[0] for p in bbox]

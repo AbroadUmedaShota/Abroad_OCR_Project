@@ -1,13 +1,27 @@
+
 import unittest
 import os
 import shutil
 from unittest.mock import patch, MagicMock
 from src.ocr_poc import pdf_to_images, run_ocr
+<<<<<<< HEAD
+from scripts.calculate_cer import calculate_cer
+=======
+>>>>>>> origin/main
 
 class TestOcrPoc(unittest.TestCase):
 
     def setUp(self):
         self.test_pdf_path = "tests/test.pdf"
+<<<<<<< HEAD
+        self.ground_truth_txt_path = "tests/test.txt"
+        # Restore original ground truth content for other tests
+        original_ground_truth_content = "精度"
+        with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
+            f.write(original_ground_truth_content)
+
+=======
+>>>>>>> origin/main
         self.output_folder = "tests/output/temp_images"
         self.output_csv_path = "tests/output/test_ocr_results.csv"
         # Ensure the output directory is clean before each test
@@ -19,6 +33,13 @@ class TestOcrPoc(unittest.TestCase):
         # Clean up created files and directories
         if os.path.exists("tests/output"):
             shutil.rmtree("tests/output")
+<<<<<<< HEAD
+        # Restore original ground truth content
+        original_ground_truth_content = "精度"
+        with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
+            f.write(original_ground_truth_content)
+=======
+>>>>>>> origin/main
 
     def test_pdf_to_images(self):
         """Test that PDF pages are converted to images."""
@@ -43,6 +64,14 @@ class TestOcrPoc(unittest.TestCase):
             with open(path, 'w') as f: # create empty files
                 f.write('')
 
+<<<<<<< HEAD
+        # Set ground truth content for this test
+        self_ground_truth_content = "mocked text" * len(image_paths)
+        with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
+            f.write(self_ground_truth_content)
+
+=======
+>>>>>>> origin/main
         # Run the function
         run_ocr(image_paths, self.output_csv_path)
 
@@ -53,6 +82,16 @@ class TestOcrPoc(unittest.TestCase):
             self.assertEqual(len(lines), 3) # Header + 2 mocked data rows
             self.assertEqual(lines[0].strip(), 'page,block_id,x0,y0,x1,y1,text,confidence')
             self.assertIn('mocked text', lines[1])
+<<<<<<< HEAD
+
+        # Test CER calculation
+        cer = calculate_cer(self.output_csv_path, self.ground_truth_txt_path)
+        self.assertEqual(cer, 0.0) # Expect 0 CER if OCR text matches ground truth
 
 if __name__ == '__main__':
     unittest.main()
+=======
+
+if __name__ == '__main__':
+    unittest.main()
+>>>>>>> origin/main

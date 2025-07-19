@@ -2,3 +2,7 @@ PyMuPDF
 paddlepaddle
 paddleocr
 Pillow
+<<<<<<< HEAD
+python-Levenshtein
+=======
+>>>>>>> origin/main

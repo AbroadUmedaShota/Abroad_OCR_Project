@@ -42,13 +42,11 @@ python src/ocr_poc.py [PDFファイルへのパス]
 
 このコマンドは、指定されたPDFファイルを処理し、同じディレクトリに以下のファイルを生成します:
 
--   `[元のPDF名]_searchable.pdf`: OCRテキストが埋め込まれた検索可能なPDF。
 -   `[元のPDF名]_ocr_results.csv`: OCR結果の詳細なCSVファイル。
 
 **オプション:**
 
 -   `--no-csv`: CSVファイルを出力しません。
--   `--zip`: 生成されたPDFとCSVファイルをZIPアーカイブにまとめます。
 
 ## 開発
 

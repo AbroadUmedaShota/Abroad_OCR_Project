@@ -1,16 +1,15 @@
-
 import subprocess
 
-title = "feat: Implement PDF to image and PP-OCRv5 CLI PoC"
-body = """このIssueでは、PDFファイルを画像に変換し、その画像に対してPP-OCRv5を用いたOCR処理をCLIから実行できる概念実証（PoC）を実装します。OCR結果はCSV形式で出力されるようにします。
+title = "feat: Integrate DBNet++ and Implement CER Measurement"
+body = """このIssueでは、OCRの精度向上と評価のためにDBNet++を統合し、Character Error Rate (CER) の計測機能を実装します。
 
 具体的には、以下の作業を行います。
 
-*   PDFファイルをページごとに画像に変換する機能の実装。
-*   変換された画像に対してPaddleOCR（PP-OCRv5）を実行し、テキストを抽出する機能の実装。
-*   CLIからPDFファイルのパスを受け取り、OCR処理を実行できるインターフェースの作成。
-*   OCR結果を`SDD.md`の「3.4 出力形式」に定義されているCSVフォーマット（`page`, `block_id`, `x0`, `y0`, `x1`, `y1`, `text`, `confidence`）で出力する機能の実装。
-*   既存の`src/ocr_poc.py`をベースに開発を進めます。"""
+*   DBNet++をPaddleOCRパイプラインに統合し、より正確なテキスト領域検出を可能にします。
+*   `src/ocr_poc.py`または新しいモジュールにCER計測機能を追加します。
+*   `tests/`ディレクトリにCER計測用のテストデータとテストケースを追加します。
+*   `SDD.md`の関連セクション（特に「3.2 品質要件」と「9. テスト計画」）を更新します。
+*   `docs/00_PROJECT_OVERVIEW.md`と`docs/01_ARCHITECTURE.md`を更新し、DBNet++の統合を反映させます。"""
 
 command = ["gh", "issue", "create", "--title", title, "--body", body]
 

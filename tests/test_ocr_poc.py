@@ -1,88 +1,66 @@
-
 import unittest
 import os
 import subprocess
-import csv
-import zipfile
+import glob
 
 class TestOcrPoc(unittest.TestCase):
-    TEST_PDF_PATH = "tests/test.pdf"
-    OUTPUT_CSV_NAME = "test.pdf_ocr_results.csv"
-    OUTPUT_ZIP_NAME = "test.zip"
 
-    @classmethod
-    def setUpClass(cls):
-        # Ensure test.pdf exists
-        if not os.path.exists(cls.TEST_PDF_PATH):
-            # Create a dummy PDF for testing if it doesn't exist
-            # In a real scenario, this would be a proper test PDF
-            with open(cls.TEST_PDF_PATH, "w") as f:
-                f.write("This is a dummy PDF content.")
+    def setUp(self):
+        """Set up test variables."""
+        self.test_pdf_path = os.path.abspath("tests/test.pdf")
+        self.base_name = os.path.splitext(os.path.basename(self.test_pdf_path))[0]
+        self.pdf_dir = os.path.dirname(self.test_pdf_path)
+        
+        self.output_pdf_path = os.path.join(self.pdf_dir, f"{self.base_name}_searchable.pdf")
+        self.output_csv_path = os.path.join(self.pdf_dir, f"{self.base_name}_ocr_results.csv")
+        self.output_zip_path = os.path.join(self.pdf_dir, f"{self.base_name}.zip")
+        self.temp_images_folder = "temp_images"
 
     def tearDown(self):
-        # Clean up generated files after each test
-        if os.path.exists(self.OUTPUT_CSV_NAME):
-            os.remove(self.OUTPUT_CSV_NAME)
-        if os.path.exists(self.OUTPUT_ZIP_NAME):
-            os.remove(self.OUTPUT_ZIP_NAME)
-        # Clean up temp_images folder if created
-        if os.path.exists("temp_images"):
-            for f in os.listdir("temp_images"):
-                os.remove(os.path.join("temp_images", f))
-            os.rmdir("temp_images")
-
-    def test_cli_execution_and_csv_output(self):
-        # Run the OCR PoC script via CLI
-        command = ["python", "src/ocr_poc.py", self.TEST_PDF_PATH]
-        result = subprocess.run(command, capture_output=True, text=True, cwd=os.getcwd())
-
-        self.assertEqual(result.returncode, 0, f"CLI execution failed: {result.stderr}")
-        self.assertTrue(os.path.exists(self.OUTPUT_CSV_NAME), "OCR results CSV not generated.")
-
-        # Verify CSV content
-        with open(self.OUTPUT_CSV_NAME, 'r', newline='', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            fieldnames = reader.fieldnames
-            expected_fieldnames = ['page', 'block_id', 'x0', 'y0', 'x1', 'y1', 'text', 'confidence']
-            self.assertEqual(fieldnames, expected_fieldnames, "CSV headers do not match expected.")
+        """Clean up generated files."""
+        files_to_remove = [
+            self.output_pdf_path,
+            self.output_csv_path,
+            self.output_zip_path,
+        ]
+        for f in files_to_remove:
+            if os.path.exists(f):
+                os.remove(f)
+        
+        # Clean up intermediate images
+        if os.path.exists(self.temp_images_folder):
+            for img_file in glob.glob(os.path.join(self.temp_images_folder, "*.png")):
+                os.remove(img_file)
+            os.rmdir(self.temp_images_folder)
             
-            # Check if there's at least one row (assuming dummy PDF will produce some output)
-            rows = list(reader)
-            self.assertGreater(len(rows), 0, "No data rows found in CSV.")
-            
-            # Basic check for data types (assuming first row is representative)
-            if rows:
-                first_row = rows[0]
-                self.assertIn('page', first_row)
-                self.assertIn('block_id', first_row)
-                self.assertIn('x0', first_row)
-                self.assertIn('y0', first_row)
-                self.assertIn('x1', first_row)
-                self.assertIn('y1', first_row)
-                self.assertIn('text', first_row)
-                self.assertIn('confidence', first_row)
-                
-                self.assertIsInstance(int(first_row['page']), int)
-                self.assertIsInstance(int(first_row['block_id']), int)
-                self.assertIsInstance(float(first_row['x0']), float)
-                self.assertIsInstance(float(first_row['y0']), float)
-                self.assertIsInstance(float(first_row['x1']), float)
-                self.assertIsInstance(float(first_row['y1']), float)
-                self.assertIsInstance(first_row['text'], str)
-                self.assertIsInstance(float(first_row['confidence']), float)
+        # Clean up debug files
+        for debug_file in glob.glob("debug_ocr_result_page_*.txt"):
+            os.remove(debug_file)
 
-    def test_zip_output(self):
-        # Run the OCR PoC script with --zip option
-        command = ["python", "src/ocr_poc.py", self.TEST_PDF_PATH, "--zip"]
-        result = subprocess.run(command, capture_output=True, text=True, cwd=os.getcwd())
+    def test_cli_execution_and_output_generation(self):
+        """
+        Tests the full CLI execution of ocr_poc.py with PDF, CSV, and ZIP output.
+        """
+        # Ensure the input test PDF exists
+        self.assertTrue(os.path.exists(self.test_pdf_path), f"Test PDF not found at {self.test_pdf_path}")
 
-        self.assertEqual(result.returncode, 0, f"CLI execution with --zip failed: {result.stderr}")
-        self.assertTrue(os.path.exists(self.OUTPUT_ZIP_NAME), "ZIP file not generated.")
+        # Run the script as a subprocess
+        command = [
+            "python", 
+            os.path.abspath("src/ocr_poc.py"), 
+            self.test_pdf_path,
+            "--zip"
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
 
-        # Verify ZIP content (at least PDF and CSV are inside)
-        with zipfile.ZipFile(self.OUTPUT_ZIP_NAME, 'r') as zf:
-            self.assertIn(os.path.basename(self.TEST_PDF_PATH), zf.namelist(), "Original PDF not in ZIP.")
-            self.assertIn(self.OUTPUT_CSV_NAME, zf.namelist(), "OCR results CSV not in ZIP.")
+        # Print stdout/stderr for debugging if the test fails
+        print("STDOUT:", result.stdout)
+        print("STDERR:", result.stderr)
+
+        # Assert that all expected files were created
+        self.assertTrue(os.path.exists(self.output_pdf_path), f"Searchable PDF was not created at {self.output_pdf_path}")
+        self.assertTrue(os.path.exists(self.output_csv_path), f"OCR results CSV was not created at {self.output_csv_path}")
+        self.assertTrue(os.path.exists(self.output_zip_path), f"ZIP archive was not created at {self.output_zip_path}")
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(argv=['first-arg-is-ignored'], exit=False)

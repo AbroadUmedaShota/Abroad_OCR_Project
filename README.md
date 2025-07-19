@@ -32,28 +32,23 @@ GitHub Actionsが設定されており、`main`ブランチへのプッシュま
 
 ## 使い方
 
-PDFファイルに対してOCRを実行するには、以下のコマンドを使用します。
+現在、Proof of Concept (PoC) として、コマンドラインインターフェース (CLI) ツールが利用可能です。
+
+**基本的な使い方:**
 
 ```bash
-python src/ocr_poc.py <PDFファイルのパス>
+python src/ocr_poc.py [PDFファイルへのパス]
 ```
 
-例:
-```bash
-python src/ocr_poc.py tests/test.pdf
-```
+このコマンドは、指定されたPDFファイルを処理し、同じディレクトリに以下のファイルを生成します:
 
-OCR結果は、入力PDFファイルと同じディレクトリに`<PDFファイル名>_ocr_results.csv`として出力されます。
+-   `[元のPDF名]_searchable.pdf`: OCRテキストが埋め込まれた検索可能なPDF。
+-   `[元のPDF名]_ocr_results.csv`: OCR結果の詳細なCSVファイル。
 
-### オプション
+**オプション:**
 
-*   `--no-csv`: OCR結果をCSVファイルに出力しません。
-*   `--zip`: PDFファイルとOCR結果のCSVファイルをZIPアーカイブにまとめます。
-
-例:
-```bash
-python src/ocr_poc.py tests/test.pdf --zip
-```
+-   `--no-csv`: CSVファイルを出力しません。
+-   `--zip`: 生成されたPDFとCSVファイルをZIPアーカイブにまとめます。
 
 ## 開発
 

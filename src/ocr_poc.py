@@ -6,9 +6,11 @@ import csv
 import zipfile
 
 ocr = PaddleOCR(use_textline_orientation=True, lang='japan')
+print("DEBUG: PaddleOCR initialized.")
 
 def pdf_to_images(pdf_path, output_folder="temp_images"):
     """Converts each page of a PDF into an image."""
+    print(f"DEBUG: Starting pdf_to_images for {pdf_path}")
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -25,62 +27,96 @@ def pdf_to_images(pdf_path, output_folder="temp_images"):
     return image_paths
 
 def run_ocr(image_paths, output_csv_path=None):
-    """Runs OCR on a list of image paths and prints/saves the results."""
+    """Runs OCR on a list of image paths and returns the structured results."""
     all_ocr_results = []
     for page_num, img_path in enumerate(image_paths):
         print(f"--- Processing {img_path} ---")
-        result = ocr.predict(img_path)
-        print(f"DEBUG: Full result for {img_path} = {result}") # Full result debug print
+        result = ocr.ocr(img_path)
+        with open(f"debug_ocr_result_page_{page_num}.txt", "w", encoding="utf-8") as f:
+            f.write(repr(result))
+        if result is None or not result or not result[0]:
+            print(f"DEBUG: No valid OCR results found for {img_path}")
+            continue
+
         block_id = 0
-        if result is not None and len(result) > 0 and result[0] is not None:
-            for line in result[0]: # Assuming result[0] contains the list of blocks for the current page
-                print(f"DEBUG: line = {line}") # Debug print
-                # line format: [[x0, y0], [x1, y1], [x2, y2], [x3, y3]], (text, confidence)
-                
-                # Defensive check for line structure
-                if not (isinstance(line, list) and len(line) == 2):
-                    print(f"DEBUG: Skipping malformed line (not a list of 2): {line}")
-                    continue
-                
-                bbox = line[0]
-                text_info = line[1]
+        for line_info in result[0]:
+            print(f"DEBUG: Processing line_info (type: {type(line_info)}): {repr(line_info)}")
+            if not (isinstance(line_info, list) and len(line_info) == 2):
+                continue
 
-                # Defensive check for text_info structure
-                if not (isinstance(text_info, tuple) and len(text_info) == 2):
-                    print(f"DEBUG: Skipping malformed text_info (not a tuple of 2): {text_info}")
-                    continue
+            bbox = line_info[0]
+            text_info = line_info[1]
 
-                text = text_info[0]
-                confidence = text_info[1]
+            if not (isinstance(bbox, list) and len(bbox) == 4 and
+                    isinstance(text_info, tuple) and len(text_info) == 2):
+                continue
 
-                # Calculate min/max x/y for bounding box
-                x_coords = [p[0] for p in bbox]
-                y_coords = [p[1] for p in bbox]
-                x0, y0 = min(x_coords), min(y_coords)
-                x1, y1 = max(x_coords), max(y_coords)
+            text, confidence = text_info
 
-                all_ocr_results.append({
-                    'page': page_num + 1,
-                    'block_id': block_id,
-                    'x0': x0,
-                    'y0': y0,
-                    'x1': x1,
-                    'y1': y1,
-                    'text': text,
-                    'confidence': confidence
-                })
-                print(f"Page {page_num + 1}, Block {block_id}: {text} (Conf: {confidence:.2f})")
-                block_id += 1
-        print("\n")
+            x_coords = [p[0] for p in bbox]
+            y_coords = [p[1] for p in bbox]
+            x0, y0 = min(x_coords), min(y_coords)
+            x1, y1 = max(x_coords), max(y_coords)
+
+            all_ocr_results.append({
+                'page': page_num,
+                'block_id': block_id,
+                'x0': x0,
+                'y0': y0,
+                'x1': x1,
+                'y1': y1,
+                'text': text,
+                'confidence': confidence
+            })
+            block_id += 1
+    print("\n")
 
     if output_csv_path:
+        csv_results = []
+        for res in all_ocr_results:
+            csv_res = res.copy()
+            csv_res['page'] = res['page'] + 1
+            csv_results.append(csv_res)
+            
         with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
             fieldnames = ['page', 'block_id', 'x0', 'y0', 'x1', 'y1', 'text', 'confidence']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
             writer.writeheader()
-            writer.writerows(all_ocr_results)
+            writer.writerows(csv_results)
         print(f"OCR results saved to {output_csv_path}")
+        
+    return all_ocr_results
+
+def create_searchable_pdf(original_pdf_path, ocr_results, output_pdf_path):
+    """Creates a searchable PDF by adding an invisible text layer to the original PDF."""
+    doc = fitz.open(original_pdf_path)
+
+    for result in ocr_results:
+        page_num = result['page']
+        if page_num < len(doc):
+            page = doc.load_page(page_num)
+            
+            img_rect = page.get_pixmap().irect
+            pdf_rect = page.rect
+            scale_x = pdf_rect.width / img_rect.width
+            scale_y = pdf_rect.height / img_rect.height
+
+            x0 = result['x0'] * scale_x
+            y0 = result['y0'] * scale_y
+            x1 = result['x1'] * scale_x
+            y1 = result['y1'] * scale_y
+            
+            rect = fitz.Rect(x0, y0, x1, y1)
+
+            page.insert_textbox(rect, 
+                                result['text'], 
+                                fontname="cjk",
+                                fontsize=0,
+                                render_mode=3)
+
+    doc.save(output_pdf_path, garbage=4, deflate=True, clean=True)
+    doc.close()
+    print(f"Searchable PDF saved to {output_pdf_path}")
 
 def main():
     parser = argparse.ArgumentParser(description="PDF to searchable PDF OCR PoC.")
@@ -103,21 +139,25 @@ def main():
 
     output_csv_path = None
     if not args.no_csv:
-        # Determine output CSV path based on PDF path
         pdf_dir = os.path.dirname(args.pdf_path)
         pdf_name = os.path.splitext(os.path.basename(args.pdf_path))[0]
         output_csv_path = os.path.join(pdf_dir, f"{pdf_name}_ocr_results.csv")
 
     print("Running OCR on extracted images...")
-    run_ocr(image_paths, output_csv_path)
+    ocr_results = run_ocr(image_paths, output_csv_path)
+
+    pdf_dir = os.path.dirname(args.pdf_path)
+    pdf_name = os.path.splitext(os.path.basename(args.pdf_path))[0]
+    output_pdf_path = os.path.join(pdf_dir, f"{pdf_name}_searchable.pdf")
+    create_searchable_pdf(args.pdf_path, ocr_results, output_pdf_path)
 
     if args.zip:
         zip_file_name = os.path.splitext(args.pdf_path)[0] + ".zip"
         with zipfile.ZipFile(zip_file_name, 'w') as zf:
-            zf.write(args.pdf_path, os.path.basename(args.pdf_path))
+            zf.write(output_pdf_path, os.path.basename(output_pdf_path))
             if output_csv_path and os.path.exists(output_csv_path):
                 zf.write(output_csv_path, os.path.basename(output_csv_path))
-        print(f"Archived PDF and CSV to {zip_file_name}")
+        print(f"Archived searchable PDF and CSV to {zip_file_name}")
 
     print("OCR PoC finished.")
 

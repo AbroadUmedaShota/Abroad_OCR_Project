@@ -106,3 +106,34 @@ This document logs the interactions and challenges encountered during the initia
 **Outcome:**
 - Basic CI/CD pipeline is now functional and correctly triggers on `main` branch updates.
 - Project setup for Sprint 0 is fully complete and verified.
+
+## 6. Debugging OCR Implementation (July 18, 2025)
+
+**Objective:** Continue development on Issue #5, focusing on implementing and debugging the OCR processing logic in `src/ocr_poc.py`.
+
+**Actions Taken:**
+- Resumed work on the `5-feat-implement-pdf-to-image-and-pp-ocrv5-cli-poc` branch.
+- Identified that a Pull Request for Issue #5 was missing, despite the issue being in the "review" state.
+- Analyzed the diff between the feature branch and `main`, confirming that changes for searchable PDF generation were present but likely buggy.
+- Attempted to fix the OCR result parsing logic in the `run_ocr` function. This involved a series of iterative debugging steps:
+    1.  Corrected an initial logic error in the result processing loop.
+    2.  Ran the unit test (`tests/test_ocr_poc.py`), which failed with an `IndentationError`.
+    3.  Made several attempts to fix nested indentation errors using the `replace` tool. Each fix led to another `IndentationError` further down in the code.
+    4.  After fixing indentation, the test failed with `AssertionError: CSV file has no data`, indicating the OCR results were still not being parsed correctly.
+    5.  The parsing logic was rewritten to better match the expected `paddleocr` output structure.
+    6.  This led to a `SyntaxError: unterminated triple-quoted string literal` due to a faulty `replace` operation that broke a docstring.
+    7.  The entire file was overwritten using `write_file` to correct the syntax.
+    8.  The test then failed with a `TypeError: PaddleOCR.predict() got an unexpected keyword argument 'cls'`, which was fixed by removing the argument.
+    9.  The test failed again with the `AssertionError: CSV file has no data`.
+- To diagnose the persistent parsing failure, the code was modified to write the raw `paddleocr` output to a debug file (`debug_ocr_result_page_*.txt`).
+- The user cancelled the final `run_shell_command` operation before the debug file could be generated and analyzed.
+
+**Challenges:**
+- **Iterative Failures:** A significant amount of time was spent chasing a cascade of errors (`IndentationError`, `SyntaxError`, `TypeError`, and finally a persistent `AssertionError`). This highlights the difficulty of fixing complex, nested code structures with the `replace` tool, which often led to subsequent errors.
+- **Incorrect Logic:** The core issue—the logic for parsing the `paddleocr` output—remained unresolved. The repeated test failures indicate a fundamental misunderstanding of the library's output data structure.
+- **Debugging Limitations:** The final attempt to dump the raw OCR output for analysis was halted by the user, preventing a definitive diagnosis of the parsing problem.
+
+**Outcome:**
+- The `src/ocr_poc.py` script remains non-functional, as it cannot correctly parse OCR results to generate the required CSV output.
+- Issue #5 is not complete. The code has been left in a state where it produces no data.
+- The session was concluded at the user's request before the root cause could be identified and fixed.

@@ -1,27 +1,51 @@
-# OS
-.DS_Store
-Thumbs.db
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Gitignore for AbOCR_Tool_Project
 
 # Python
 __pycache__/
 *.pyc
-.venv/
-venv/
-
-# Build artifacts
-dist/
+*.pyo
+*.pyd
+.Python/
 build/
-*.log
+develop-eggs/
+dist/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.venv
+venv/
+env/
+.env
+.ipynb_checkpoints
+.pytest_cache
+.mypy_cache
+.dmypy.json
+.ruff_cache
+
+# OS generated files
+.DS_Store
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # IDEs
 .idea/
 .vscode/
+*.sublime-project
+*.sublime-workspace
 
-# Tauri
-src-tauri/target/
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+temp_images/
+debug_ocr_result_page_*.txt
+tests/ocr_output.txt

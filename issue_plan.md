@@ -4,27 +4,29 @@ To resolve this Issue, I will proceed with the implementation according to the f
 
 **Files to be changed:**
 - `src/ocr_poc.py`
-- `requirements.txt`
-- `tests/test_ocr_poc.py` (new file)
+- `tests/test_ocr_poc.py`
+- `SDD.md`
+- `docs/00_PROJECT_OVERVIEW.md`
+- `docs/01_ARCHITECTURE.md`
 
 #### 1. **Contribution to Project Goals**
-- This change implements the core OCR processing PoC defined as the goal for Sprint 1 in the `SDD.md`, establishing the foundation for subsequent development.
+- This change implements the framework for Ensemble Voting and KenLM Correction, which are crucial for achieving the target OCR accuracy as outlined in `SDD.md`.
 
 #### 2. **Overview of Changes**
-- Based on the existing `src/ocr_poc.py`, I will refine the script to focus solely on the requirements of this issue: converting a PDF to images, performing OCR, and outputting the results to a CSV file. I will remove functionality that is out of scope for this PoC, such as creating searchable PDFs.
+- I will introduce placeholders and basic logic for Ensemble Voting and KenLM Correction within `src/ocr_poc.py`. This will allow for future integration of multiple OCR engines and a language model for post-processing, without fully implementing them in this PoC phase.
 
 #### 3. **Specific Work Content for Each File**
 - `src/ocr_poc.py`:
-    - Remove the `create_searchable_pdf` function and the `zipfile` import as they are not within the scope of this issue.
-    - Modify the `main` function to remove the call to `create_searchable_pdf` and the associated `--zip` argument processing.
-    - Remove the debug file output from the `run_ocr` function to clean up the code.
-- `requirements.txt`:
-    - Ensure that all necessary libraries (`paddleocr`, `PyMuPDF`, `Pillow`) are listed.
+    - **Ensemble Voting Framework**: Add a section within `run_ocr` to simulate results from multiple OCR engines (e.g., by duplicating PaddleOCR results with slight variations or using mock data). Implement a simple voting mechanism based on confidence scores.
+    - **KenLM Correction Framework**: Add a placeholder function or section within `run_ocr` to apply KenLM correction to the recognized text. Actual KenLM model loading and complex correction logic will be deferred.
 - `tests/test_ocr_poc.py`:
-    - Create a new test file.
-    - Add a unit test for the `pdf_to_images` function.
-    - Add a unit test for the `run_ocr` function.
-    - A sample PDF file for testing will be placed in the `tests/` directory.
+    - Add new test cases to verify the basic functionality of the Ensemble Voting and KenLM Correction frameworks using mock data.
+- `SDD.md`:
+    - Update sections `4.3 OCR Engine Layer` and `5.3 KenLM 補正` to reflect the introduction of the frameworks.
+- `docs/00_PROJECT_OVERVIEW.md`:
+    - Update `3. 主要機能 (Proof of Concept)` to mention the inclusion of Ensemble Voting and KenLM Correction frameworks.
+- `docs/01_ARCHITECTURE.md`:
+    - Update `3.3 OCR Engine Layer` and `3.4 Pre/Post-Processing` to reflect the current implementation status of Ensemble Voting and KenLM Correction frameworks.
 
 #### 4. **Definition of Done**
 - [ ] All necessary code changes have been implemented.

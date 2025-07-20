@@ -69,11 +69,86 @@ class TestOcrPoc(unittest.TestCase):
             self.assertEqual(len(lines), 3) # Header + 2 mocked data rows
             self.assertEqual(lines[0].strip(), 'page,block_id,x0,y0,x1,y1,text,confidence')
             self.assertIn('mocked text', lines[1])
+<<<<<<< HEAD
 
         # Test CER calculation
         cer = calculate_cer(self.output_csv_path, self.ground_truth_txt_path)
         self.assertEqual(cer, 0.0) # Expect 0 CER if OCR text matches ground truth
 
+    @patch('src.ocr_poc.PaddleOCR')
+    def test_ensemble_voting_and_kenlm_framework(self, MockPaddleOCR):
+        """Test the ensemble voting and KenLM correction frameworks."""
+        mock_ocr_instance = MockPaddleOCR.return_value
+        # Simulate slightly different results from two engines
+        mock_result_engine_1 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_A', 0.9)]]]
+        mock_result_engine_2 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_B', 0.8)]]]
+
+        # Mock the ocr method for both simulated engines
+        mock_ocr_instance.ocr.side_effect = [mock_result_engine_1, mock_result_engine_2, mock_result_engine_1] # Called three times per page
+
+        image_paths = [os.path.join(self.output_folder, "page_1.png")]
+        for path in image_paths:
+            with open(path, 'w') as f: # create empty files
+                f.write('')
+
+        # Run the function
+        run_ocr(image_paths, self.output_csv_path)
+
+        # Assertions for ensemble voting (simple check for now)
+        self.assertTrue(os.path.exists(self.output_csv_path))
+        with open(self.output_csv_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            # Expecting header + 1 data row from the single page
+            self.assertEqual(len(lines), 2)
+            # Check if the text from the higher confidence engine (text_A) is present
+            self.assertIn('text_A', lines[1])
+
+        # For KenLM, we can't directly assert correction without a real model.
+        # We can assert that the corrected_text variable was used in the output.
+        # This is implicitly covered by checking the CSV content.
+
+    @patch('src.ocr_poc.PaddleOCR')
+    def test_lora_integration_and_accuracy_review_framework(self, MockPaddleOCR):
+        """Test the LoRA integration and accuracy review frameworks."""
+        mock_ocr_instance = MockPaddleOCR.return_value
+        # Simulate results from three engines (including LoRA)
+        mock_result_engine_1 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_A', 0.9)]]]
+        mock_result_engine_2 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_B', 0.8)]]]
+        mock_result_engine_3 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_C', 0.95)]]] # LoRA result
+
+        # Mock the ocr method for all simulated engines
+        mock_ocr_instance.ocr.side_effect = [mock_result_engine_1, mock_result_engine_2, mock_result_engine_3] # Called three times per page
+
+        image_paths = [os.path.join(self.output_folder, "page_1.png")]
+        for path in image_paths:
+            with open(path, 'w') as f: # create empty files
+                f.write('')
+
+        # Set ground truth content for this test
+        self_ground_truth_content = "text_C" # Expect LoRA result to be chosen
+        with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
+            f.write(self_ground_truth_content)
+
+        # Run the function
+        run_ocr(image_paths, self.output_csv_path)
+
+        # Assertions
+        self.assertTrue(os.path.exists(self.output_csv_path))
+        with open(self.output_csv_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            self.assertEqual(len(lines), 2) # Header + 1 data row
+            self.assertIn('text_C', lines[1]) # Expect LoRA result to be in output
+=======
+>>>>>>> origin/main
+
+        # Test CER calculation
+        cer = calculate_cer(self.output_csv_path, self.ground_truth_txt_path)
+        self.assertEqual(cer, 0.0) # Expect 0 CER if OCR text matches ground truth
+
+<<<<<<< HEAD
+if __name__ == '__main__':
+    unittest.main()
+=======
     @patch('src.ocr_poc.PaddleOCR')
     def test_ensemble_voting_and_kenlm_framework(self, MockPaddleOCR):
         """Test the ensemble voting and KenLM correction frameworks."""
@@ -108,3 +183,4 @@ class TestOcrPoc(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+>>>>>>> origin/main

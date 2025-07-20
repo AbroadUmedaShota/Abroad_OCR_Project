@@ -186,8 +186,8 @@ DBNet++ は別添 polygon ラベルで IoU 0.85 学習、mAP 0.92 想定。
 
 | テスト     | 方法                     | 合格基準    |
 | ------- | ---------------------- | ------- |
-| 印字 CER  | `ocr_eval --set print` | ≤ 2 %   |
-| 手書き CER | `ocr_eval --set hand`  | ≤ 5 %   |
+| 印字 CER  | `scripts/calculate_cer.py` を使用 | ≤ 2 %   |
+| 手書き CER | `scripts/calculate_cer.py` を使用  | ≤ 5 %   |
 | IoU     | mean IoU 全行            | ≥ 0.80  |
 | 空白整合    | 空白トークン CER             | ≤ 1 %   |
 | 性能      | 50 p / CPU             | ≤ 5 min |

@@ -1,18 +1,19 @@
 import subprocess
 
-issue_number = "18"
-remove_label = "status: implementing"
-add_labels = ["status: review"]
+issue_number = "20"
+remove_label = "status: planning"
+add_labels = ["status: implementing"]
 
 command = [
     "gh", "issue", "edit", issue_number,
+    "--add-assignee", "@me"
 ]
-
-if remove_label:
-    command.extend(["--remove-label", remove_label])
 
 for label in add_labels:
     command.extend(["--add-label", label])
+
+if remove_label:
+    command.extend(["--remove-label", remove_label])
 
 try:
     result = subprocess.run(command, capture_output=True, text=True, check=True)

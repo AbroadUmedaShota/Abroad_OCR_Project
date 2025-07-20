@@ -1,1 +1,1 @@
-User approval confirmed on the CLI (self-review).
+User approval confirmed on the CLI after self-review.

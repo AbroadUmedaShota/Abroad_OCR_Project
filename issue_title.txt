@@ -1,1 +1,1 @@
-feat: Implement Tauri UI Alpha and IoU Check
+feat: Conduct Beta Testing, Load Testing, and Prepare Release Candidate

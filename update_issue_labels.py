@@ -1,9 +1,8 @@
-
 import subprocess
 
 issue_number = "18"
-remove_label = "status: planning"
-add_labels = ["status: implementing"]
+remove_label = "status: implementing"
+add_labels = ["status: review"]
 
 command = [
     "gh", "issue", "edit", issue_number,

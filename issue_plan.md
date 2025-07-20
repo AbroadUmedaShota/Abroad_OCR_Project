@@ -1,40 +1,31 @@
 ### Implementation Proposal
 
-To resolve this Issue, I will proceed with the implementation of the IoU Check feature according to the following plan. I propose to split the Tauri UI Alpha implementation into a separate, future issue due to its distinct technology stack and complexity.
+To resolve this Issue, I will proceed with the planning and preparation for Beta Testing, Load Testing, and Release Candidate generation. The actual execution of these tests and the final release build will be conducted after this issue is completed.
 
 **Files to be changed:**
-- `scripts/calculate_iou.py` (new file)
-- `src/ocr_poc.py`
-- `tests/test_ocr_poc.py`
 - `SDD.md`
 - `docs/00_PROJECT_OVERVIEW.md`
 - `docs/01_ARCHITECTURE.md`
 
 #### 1. **Contribution to Project Goals**
-- This change implements the framework for IoU checking, which is crucial for evaluating the quality of bounding box detection, a key quality requirement in `SDD.md`.
+- This change establishes the framework for comprehensive quality assurance and release management, crucial for delivering a stable and high-quality application as outlined in `SDD.md`.
 
 #### 2. **Overview of Changes**
-- I will implement a utility function for IoU calculation and integrate a placeholder for its use within `src/ocr_poc.py`. The test suite will be extended to verify the IoU calculation.
+- I will update the `SDD.md` to include detailed plans for beta testing and load testing, as well as an overview of the release candidate preparation process. The project overview and architecture documents will also be updated to reflect these new phases.
 
 #### 3. **Specific Work Content for Each File**
-- `scripts/calculate_iou.py`:
-    - Create a new Python file containing a function to calculate IoU between two bounding boxes.
-- `src/ocr_poc.py`:
-    - Add a placeholder for IoU calculation within `run_ocr`, where OCR-detected bounding boxes would be compared against ground truth (when available).
-- `tests/test_ocr_poc.py`:
-    - Add new test cases to verify the correctness of the `calculate_iou` function using various bounding box scenarios.
 - `SDD.md`:
-    - Update sections `3.2 品質要件` (Bounding Box IoU) and `9. テスト計画` (IoU testing methodology) to reflect the implementation.
+    - Update `9. テスト計画` to include sections for Beta Testing Plan (e.g., user recruitment, feedback collection) and Load Testing Plan (e.g., performance metrics, tools).
+    - Update `10. CI/CD & デプロイ` to outline the process for building and distributing release candidates.
 - `docs/00_PROJECT_OVERVIEW.md`:
-    - Update `3. 主要機能 (Proof of Concept)` to mention the inclusion of the IoU check framework.
+    - Update `3. 主要機能 (Proof of Concept)` to mention the inclusion of beta testing, load testing, and release candidate preparation phases.
 - `docs/01_ARCHITECTURE.md`:
-    - Update relevant sections to reflect the IoU check implementation.
+    - Update relevant sections to reflect the planning for beta testing, load testing, and release candidate preparation.
 
 #### 4. **Definition of Done**
-- [ ] All necessary code changes have been implemented.
-- [ ] New tests have been added to cover the changes.
-- [ ] All existing and new tests pass.
-- [ ] The documentation has been updated to reflect the changes.
+- [ ] All necessary documentation updates have been implemented.
+- [ ] The plans for beta testing, load testing, and release candidate preparation are clearly outlined in `SDD.md`.
+- [ ] The project overview and architecture documents reflect these new phases.
 - [ ] The implementation has been manually verified.
 
 ---

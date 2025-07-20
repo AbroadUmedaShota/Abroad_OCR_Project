@@ -142,6 +142,9 @@ for line in detected_lines:
 ### 5.3 KenLM 補正
 
 ```
+# KenLM 補正: 認識結果を言語モデルで補正
+# 候補となるテキスト列 (n-best list) を生成し、KenLM モデルでスコア付け
+# 最もスコアの高い候補を最終結果として採用
 score = log P(sentence|LM)
 Δ = score_best - score_alt  # 対数確率差
 if Δ > τ: choose best else alt

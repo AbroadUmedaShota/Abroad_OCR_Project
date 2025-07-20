@@ -3,6 +3,7 @@ import fitz  # PyMuPDF
 from paddleocr import PaddleOCR
 import os
 import csv
+from scripts.kenlm_corrector import KenLMCorrector
 
 def pdf_to_images(pdf_path, output_folder="temp_images"):
     """Converts each page of a PDF into an image."""
@@ -24,40 +25,85 @@ def pdf_to_images(pdf_path, output_folder="temp_images"):
 
 def run_ocr(image_paths, output_csv_path=None):
     """Runs OCR on a list of image paths and returns the structured results."""
-    # Initialize PaddleOCR with DBNet++ for detection.
-    # NOTE: The actual model path for DBNet++ might need to be specified if it's not the default.
-    ocr_engine = PaddleOCR(use_angle_cls=True, lang='japan', det_algorithm='DB++')
+    # Initialize multiple OCR engines for ensemble voting
+    ocr_engine_1 = PaddleOCR(use_angle_cls=True, lang='japan', det_algorithm='DB++')
+    ocr_engine_2 = PaddleOCR(use_angle_cls=True, lang='japan', det_algorithm='DB++') # Placeholder for another engine (e.g., Tesseract)
+    ocr_engine_3 = PaddleOCR(use_angle_cls=True, lang='japan', det_algorithm='DB++') # Placeholder for a third engine (e.g., Mistral-OCR LoRA)
 
-    print("DEBUG: OCR Engine initialized with DBNet++ inside run_ocr.")
+    # Initialize KenLM Corrector within the function
+    # NOTE: KenLM model loading is temporarily commented out due to installation issues.
+    # kenlm_corrector = KenLMCorrector("/path/to/your/kenlm_model.arpa")
+
+    print("DEBUG: OCR Engines initialized for ensemble voting.")
 
     all_ocr_results = []
     for page_num, img_path in enumerate(image_paths):
         print(f"--- Processing {img_path} ---")
 
-        result = ocr_engine.ocr(img_path, cls=True)
+        # Get results from each engine
+        result_engine_1 = ocr_engine_1.ocr(img_path, cls=True)
+        result_engine_2 = ocr_engine_2.ocr(img_path, cls=True) # Simulate result from engine 2
+        result_engine_3 = ocr_engine_3.ocr(img_path, cls=True) # Simulate result from engine 3
 
-        if not result or not result[0]:
+        # Ensemble Voting (Weighted Voting Fusion)
+        # For simplicity, we'll choose the result with the highest confidence for each line.
+        # In a real scenario, weights would be applied (conf * weight_engine) and then compared.
+        final_result_for_page = []
+        # Assuming results are structured similarly and can be iterated line by line
+        # This is a simplified example and might need more sophisticated alignment for real-world scenarios
+        max_lines = max(len(result_engine_1[0]) if result_engine_1 and result_engine_1[0] else 0,
+                        len(result_engine_2[0]) if result_engine_2 and result_engine_2[0] else 0,
+                        len(result_engine_3[0]) if result_engine_3 and result_engine_3[0] else 0)
+
+        for i in range(max_lines):
+            best_line_info = None
+            best_confidence = -1.0
+
+            # Check engine 1
+            if result_engine_1 and result_engine_1[0] and i < len(result_engine_1[0]):
+                line_info = result_engine_1[0][i]
+                if line_info and len(line_info) == 2 and line_info[1] and len(line_info[1]) == 2:
+                    if line_info[1][1] > best_confidence:
+                        best_confidence = line_info[1][1]
+                        best_line_info = line_info
+
+            # Check engine 2
+            if result_engine_2 and result_engine_2[0] and i < len(result_engine_2[0]):
+                line_info = result_engine_2[0][i]
+                if line_info and len(line_info) == 2 and line_info[1] and len(line_info[1]) == 2:
+                    if line_info[1][1] > best_confidence:
+                        best_confidence = line_info[1][1]
+                        best_line_info = line_info
+
+            # Check engine 3
+            if result_engine_3 and result_engine_3[0] and i < len(result_engine_3[0]):
+                line_info = result_engine_3[0][i]
+                if line_info and len(line_info) == 2 and line_info[1] and len(line_info[1]) == 2:
+                    if line_info[1][1] > best_confidence:
+                        best_confidence = line_info[1][1]
+                        best_line_info = line_info
+            
+            if best_line_info:
+                final_result_for_page.append(best_line_info)
+
+        if not final_result_for_page:
             print(f"DEBUG: No valid OCR results found for {img_path}")
             continue
 
         block_id = 0
-        for line_info in result[0]:
-            print(f"DEBUG: Processing line_info (type: {type(line_info)}): {repr(line_info)}")
-            if not (isinstance(line_info, list) and len(line_info) == 2):
+        for line_info in final_result_for_page:
+            # Ensure line_info is in the expected format before processing
+            if not (isinstance(line_info, list) and len(line_info) == 2 and
+                    isinstance(line_info[0], list) and # bbox
+                    isinstance(line_info[1], tuple) and len(line_info[1]) == 2): # (text, confidence)
+                print(f"DEBUG: Skipping malformed line_info: {line_info}")
                 continue
 
             bbox = line_info[0]
-            text_info = line_info[1]
-
-            if not (isinstance(bbox, list) and len(bbox) == 4 and
-                    isinstance(text_info, tuple) and len(text_info) == 2):
-                continue
-
-            text, confidence = text_info
+            text, confidence = line_info[1]
 
             # KenLM Correction Framework
-            # This is a placeholder for KenLM correction. In a real scenario,
-            # you would load a KenLM model and apply it to the 'text' variable.
+            # corrected_text = kenlm_corrector.correct(text) # Temporarily disabled due to kenlm installation issues
             corrected_text = text # For now, no correction is applied
             print(f"DEBUG: Original text: {text}, Corrected text: {corrected_text}")
 

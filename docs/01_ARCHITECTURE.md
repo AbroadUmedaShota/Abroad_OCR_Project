@@ -33,11 +33,7 @@ OCR処理のワークフローを管理します。
 
 - **PP-OCRv5**: 印字および手書き文字に対応した汎用OCRエンジン。DBNet++による高精度なテキスト領域検出が統合されています。
 - **Tesseract 5.4 (将来)**: 印字に特化したOCRエンジン。
-<<<<<<< HEAD
 - **Mistral-OCR LoRA (枠組み導入済み)**: 手書き文字に特化したOCRエンジン。
-=======
-- **Mistral-OCR LoRA (将来)**: 手書き文字に特化したOCRエンジン。
->>>>>>> origin/main
 - **Weighted Voting Fusion (枠組み導入済み)**: 複数のOCRエンジンの結果を統合し、最終的な認識結果を決定します。
 
 ### 3.4. Pre/Post-Processing

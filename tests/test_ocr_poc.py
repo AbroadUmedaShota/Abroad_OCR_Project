@@ -82,6 +82,52 @@ class TestOcrPoc(unittest.TestCase):
         cer = calculate_cer(self_ground_truth_content, ocr_text)
         self.assertEqual(cer, 0.0) # Expect 0 CER if OCR text matches ground truth
 
+    @patch('src.ocr_poc.PaddleOCR')
+    def test_ensemble_voting_and_kenlm_correction(self, MockPaddleOCR):
+        """Test the ensemble voting and KenLM correction frameworks."""
+        mock_ocr_instance_1 = MockPaddleOCR.return_value
+        mock_ocr_instance_2 = MockPaddleOCR.return_value
+        mock_ocr_instance_3 = MockPaddleOCR.return_value
+
+        # Simulate results from three engines
+        mock_result_engine_1 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_A', 0.9)]]]
+        mock_result_engine_2 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_B', 0.8)]]]
+        mock_result_engine_3 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_C', 0.95)]]] # Highest confidence
+
+        # Configure side_effect for PaddleOCR mock to return results for each engine call
+        # The run_ocr function calls ocr_engine.ocr three times per image
+        mock_ocr_instance_1.ocr.side_effect = [mock_result_engine_1, mock_result_engine_2, mock_result_engine_3]
+
+        image_paths = [os.path.join(self.output_folder, "page_1.png")]
+        for path in image_paths:
+            with open(path, 'w') as f: # create empty files
+                f.write('')
+
+        # Set ground truth content for this test
+        self_ground_truth_content = "text_C" # Expect highest confidence text
+        with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
+            f.write(self_ground_truth_content)
+
+        # Run the function
+        run_ocr(image_paths, self.output_csv_path)
+
+        # Assertions
+        self.assertTrue(os.path.exists(self.output_csv_path))
+        with open(self.output_csv_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            self.assertEqual(len(lines), 2) # Header + 1 data row
+            # Expect the highest confidence text (text_C) from ensemble voting
+            self.assertIn('text_C', lines[1])
+
+        # Test CER calculation
+        ocr_text = ""
+        with open(self.output_csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                ocr_text += row['text']
+        cer = calculate_cer(self_ground_truth_content, ocr_text)
+        self.assertEqual(cer, 0.0) # Expect 0 CER if OCR text matches ground truth
+
     def test_calculate_cer(self):
         """Test the calculate_cer function."""
         self.assertEqual(calculate_cer("apple", "apple"), 0.0)

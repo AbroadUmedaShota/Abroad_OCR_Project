@@ -1,6 +1,6 @@
 import subprocess
 
-issue_number = "20"
+issue_number = "22"
 remove_label = "status: planning"
 add_labels = ["status: implementing"]
 

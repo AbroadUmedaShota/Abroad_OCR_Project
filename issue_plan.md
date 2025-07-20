@@ -4,37 +4,40 @@ To resolve this Issue, I will proceed with the implementation according to the f
 
 **Files to be changed:**
 - `src/ocr_poc.py`
+- `scripts/` (new files for KenLM model loading/application, if necessary)
 - `tests/test_ocr_poc.py`
-- `scripts/calculate_cer.py`
 - `SDD.md`
 - `docs/00_PROJECT_OVERVIEW.md`
 - `docs/01_ARCHITECTURE.md`
 
 #### 1. **Contribution to Project Goals**
-- This implementation will improve OCR accuracy by integrating DBNet++ for text detection, and enable quantitative evaluation of OCR performance by implementing CER measurement. This directly contributes to the project goals of high-accuracy OCR and structured output of OCR results.
+- This implementation will significantly improve OCR accuracy by integrating Ensemble Voting for robust result selection and KenLM Correction for linguistic refinement, directly contributing to the project's high-accuracy OCR goal.
 
 #### 2. **Overview of Changes**
-- Integrate DBNet++ into the PaddleOCR pipeline in `src/ocr_poc.py`.
-- Implement a CER calculation function in `scripts/calculate_cer.py`.
-- Add test cases for CER measurement in `tests/test_ocr_poc.py`.
-- Update `SDD.md`, `docs/00_PROJECT_OVERVIEW.md`, and `docs/01_ARCHITECTURE.md` to reflect the integration of DBNet++ and the addition of CER measurement.
+- Implement Ensemble Voting (Weighted Voting Fusion) logic in `src/ocr_poc.py` to combine results from multiple OCR engines.
+- Implement KenLM Correction logic in `src/ocr_poc.py` to refine OCR output using a language model.
+- Add necessary helper scripts for KenLM model handling in `scripts/`.
+- Add new test cases in `tests/test_ocr_poc.py` to verify the functionality and effectiveness of Ensemble Voting and KenLM Correction.
+- Update `SDD.md`, `docs/00_PROJECT_OVERVIEW.md`, and `docs/01_ARCHITECTURE.md` to reflect these new capabilities.
 
 #### 3. **Specific Work Content for Each File**
 - `src/ocr_poc.py`:
-    - Modify the `PaddleOCR` initialization to use DBNet++ for text detection.
-    - Update the OCR processing logic to handle the output from DBNet++.
-- `scripts/calculate_cer.py`:
-    - Create a new script to calculate the Character Error Rate (CER) between a ground truth text and a hypothesis text.
+    - Reintroduce and enhance the ensemble voting logic to select the best OCR result from multiple engines based on confidence and potentially other metrics.
+    - Integrate KenLM model loading and application to correct recognized text.
+    - Ensure the current DBNet++ integration is compatible with these new features.
+- `scripts/`:
+    - Create `scripts/load_kenlm_model.py` (or similar) to handle loading of KenLM models and providing an interface for correction.
 - `tests/test_ocr_poc.py`:
-    - Add a new test case to verify the correctness of the CER calculation.
-    - Add a test case to evaluate the OCR performance on a sample document using the CER metric.
+    - Add test cases for ensemble voting, simulating different OCR engine outputs and asserting the correct combined result.
+    - Add test cases for KenLM correction, providing sample texts and expected corrected outputs.
 - `SDD.md`:
-    - Update the "3.2 品質要件" and "9. テスト計画" sections to include CER as an evaluation metric.
-    - Update the "4. システム全体構成" and "5.1 レイアウト検出 (DBNet++)" sections to reflect the integration of DBNet++.
+    - Update "4.3 OCR エンジン Layer" to detail the Weighted Voting Fusion.
+    - Update "4.4 Pre/Post 処理" to detail KenLM 5-gram correction.
+    - Update "5.2 Voting & スペース保持" and "5.3 KenLM 補正" with implementation details.
 - `docs/00_PROJECT_OVERVIEW.md`:
-    - Update the "3. 主要機能 (Proof of Concept)" section to mention the integration of DBNet++.
+    - Update "3. 主要機能 (Proof of Concept)" to mention Ensemble Voting and KenLM Correction.
 - `docs/01_ARCHITECTURE.md`:
-    - Update the "3.3. OCR Engine Layer" section to reflect the integration of DBNet++.
+    - Update "3.3. OCR Engine Layer" and "3.4. Pre/Post-Processing" to reflect the detailed implementation of Ensemble Voting and KenLM Correction.
 
 #### 4. **Definition of Done**
 - [ ] All necessary code changes have been implemented.

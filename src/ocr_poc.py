@@ -3,6 +3,92 @@ import fitz  # PyMuPDF
 from paddleocr import PaddleOCR
 import os
 import csv
+from scripts.kenlm_corrector import KenLMCorrector
+
+# Add imports for LoRA model
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel, PeftConfig
+import torch
+
+# Define a placeholder/mock for the Mistral-OCR LoRA Engine
+class MistralOCR_LoRA_Engine:
+    def __init__(self, base_model_name, lora_adapter_path):
+        self.base_model_name = base_model_name
+        self.lora_adapter_path = lora_adapter_path
+        self.model = None
+        self.tokenizer = None
+        self._load_model()
+
+    def _load_model(self):
+        print(f"Loading base model: {self.base_model_name}")
+        # Load base model
+        self.model = AutoModelForCausalLM.from_pretrained(
+            self.base_model_name,
+            device_map="auto",
+            trust_remote_code=True,
+            torch_dtype=torch.bfloat16 # Use bfloat16 for potentially lower memory usage
+        )
+        self.tokenizer = AutoTokenizer.from_pretrained(self.base_model_name, trust_remote_code=True)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+
+        print(f"Loading LoRA adapters from: {self.lora_adapter_path}")
+        # Load LoRA adapters
+        self.model = PeftModel.from_pretrained(self.model, self.lora_adapter_path)
+        self.model.eval() # Set to evaluation mode
+
+        print("Mistral-OCR LoRA model loaded successfully.")
+
+    def ocr(self, image_path):
+        """
+        Performs OCR using the LoRA model.
+        This is a simplified example. In a real scenario, you would:
+        1. Preprocess the image (e.g., convert to text, or use a multimodal model).
+        2. Prepare the input for the LoRA-tuned language model.
+        3. Run inference to generate text.
+        4. (Optional) Implement a mechanism to extract bounding boxes if the model supports it.
+        5. Format the output to match PaddleOCR's result format.
+        """
+        print(f"Running LoRA OCR for {image_path}")
+        
+        # For this PoC, we'll simulate image-to-text conversion.
+        # In a real application, you'd feed the image (or a representation of it) to the model.
+        # For a text-based LoRA model, you might need an initial OCR step (e.g., PaddleOCR)
+        # to get text, then use the LoRA model for correction/refinement.
+        
+        # For now, let's assume we get some input text from an image (e.g., from another OCR engine)
+        # and the LoRA model refines it.
+        # This part needs to be adapted based on how your LoRA model processes images.
+        
+        # Example: If your LoRA model is a text-to-text model, you'd feed it a prompt.
+        # For a true OCR LoRA, you'd need a multimodal model or a pre-processing step.
+        
+        # For demonstration, let's use a simple prompt and generate text.
+        # This is NOT a full OCR solution, but demonstrates the LoRA model's integration.
+        prompt = f"Extract text from the following image: {os.path.basename(image_path)}. Text: "
+        
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        
+        with torch.no_grad():
+            outputs = self.model.generate(**inputs, max_new_tokens=100, num_return_sequences=1)
+        
+        generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        
+        # Post-process the generated text to extract only the OCR result part
+        # This is a very basic example and needs refinement based on actual model output format.
+        ocr_result_text = generated_text.replace(prompt, "").strip()
+        
+        # Simulate bounding box and confidence for compatibility with PaddleOCR format
+        # In a real scenario, if your LoRA model provides bounding boxes, you'd extract them.
+        # Otherwise, you might use a separate detection model or rely on a base OCR for bboxes.
+        dummy_bbox = [[10, 10, 100, 20], [100, 20, 10, 100], [10, 100, 100, 90], [100, 90, 10, 10]] # A simple square bbox
+        confidence = 0.9 # Placeholder confidence
+        
+        # PaddleOCR expects a list of pages, each containing a list of results.
+        # Each result is [bbox, (text, confidence)].
+        results = [
+            [dummy_bbox, (ocr_result_text, confidence)]
+        ]
+        return [results] # Return as a list of pages, each containing a list of results.
 
 def pdf_to_images(pdf_path, output_folder="temp_images"):
     """Converts each page of a PDF into an image."""
@@ -22,84 +108,97 @@ def pdf_to_images(pdf_path, output_folder="temp_images"):
     doc.close()
     return image_paths
 
-def run_ocr(image_paths, output_csv_path=None, lora_path=None):
+def run_ocr(image_paths, output_csv_path=None):
     """Runs OCR on a list of image paths and returns the structured results."""
-    # Initialize PaddleOCR within the function to ensure models are loaded correctly.
-    ocr_engine_1 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True)
-    # Simulate another OCR engine (e.g., Tesseract or Mistral-OCR LoRA in future)
-    ocr_engine_2 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True) # Placeholder for another engine
+    # Initialize multiple OCR engines for ensemble voting
+    ocr_engine_1 = PaddleOCR(use_angle_cls=True, lang='japan', det_algorithm='DB++')
+    ocr_engine_2 = PaddleOCR(use_angle_cls=True, lang='japan', det_algorithm='DB++') # Placeholder for another engine (e.g., Tesseract)
     
-    # Initialize the LoRA model engine
-    if lora_path and os.path.exists(lora_path):
-        print(f"DEBUG: Loading LoRA model from {lora_path}")
-        # In a real implementation, you would load the LoRA weights into the model here.
-        # For PaddleOCR, this might involve setting `rec_model_dir` or similar parameters
-        # if the fine-tuned model is saved in a compatible format.
-        # As a placeholder, we'll initialize a separate engine and print a debug message.
-        ocr_engine_3 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True, rec_model_dir=lora_path)
-        print("DEBUG: LoRA model loaded.")
-    else:
-        print("DEBUG: No LoRA model path provided or path not found. Using standard model.")
-        ocr_engine_3 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True) # Fallback to standard model
+    # Initialize Mistral-OCR LoRA Engine
+    # NOTE: Replace with actual model name and path
+    lora_base_model_name = "mistralai/Mistral-7B-v0.1" # Example base model
+    lora_adapter_path = "./lora_finetuned_model/lora_adapters" # Path where finetuned adapters are saved
+    
+    try:
+        ocr_engine_3 = MistralOCR_LoRA_Engine(lora_base_model_name, lora_adapter_path)
+    except Exception as e:
+        print(f"Warning: Could not load Mistral-OCR LoRA engine: {e}. Using PaddleOCR as fallback for engine 3.")
+        ocr_engine_3 = PaddleOCR(use_angle_cls=True, lang='japan', det_algorithm='DB++') # Fallback
 
-    print("DEBUG: OCR Engines initialized inside run_ocr.")
+    # Initialize KenLM Corrector within the function
+    # NOTE: KenLM model loading is temporarily commented out due to installation issues.
+    # kenlm_corrector = KenLMCorrector("/path/to/your/kenlm_model.arpa")
+
+    print("DEBUG: OCR Engines initialized for ensemble voting.")
 
     all_ocr_results = []
     for page_num, img_path in enumerate(image_paths):
         print(f"--- Processing {img_path} ---")
 
-        # Simulate results from multiple engines
-        result_engine_1 = ocr_engine_1.ocr(img_path, det=True, rec=True, cls=True)
-        result_engine_2 = ocr_engine_2.ocr(img_path, det=True, rec=True, cls=True) # Placeholder result
-        result_engine_3 = ocr_engine_3.ocr(img_path, det=True, rec=True, cls=True) # Placeholder result for LoRA
+        # Get results from each engine
+        result_engine_1 = ocr_engine_1.ocr(img_path, cls=True)
+        result_engine_2 = ocr_engine_2.ocr(img_path, cls=True) # Simulate result from engine 2
+        result_engine_3 = ocr_engine_3.ocr(img_path) # Use the LoRA engine
 
-        # Ensemble Voting Framework (Weighted Voting Fusion)
+        # Ensemble Voting (Weighted Voting Fusion)
         # For simplicity, we'll choose the result with the highest confidence for each line.
         # In a real scenario, weights would be applied (conf * weight_engine) and then compared.
         final_result_for_page = []
-        if result_engine_1 and result_engine_1[0]:
-            for i, line_info_1 in enumerate(result_engine_1[0]):
-                best_line_info = line_info_1
-                best_confidence = line_info_1[1][1]
+        # Assuming results are structured similarly and can be iterated line by line
+        # This is a simplified example and might need more sophisticated alignment for real-world scenarios
+        max_lines = max(len(result_engine_1[0]) if result_engine_1 and result_engine_1[0] else 0,
+                        len(result_engine_2[0]) if result_engine_2 and result_engine_2[0] else 0,
+                        len(result_engine_3[0]) if result_engine_3 and result_engine_3[0] else 0)
 
-                # Compare with engine 2 (if available and has results for this line)
-                if result_engine_2 and result_engine_2[0] and i < len(result_engine_2[0]):
-                    line_info_2 = result_engine_2[0][i]
-                    if line_info_2[1][1] > best_confidence:
-                        best_line_info = line_info_2
-                        best_confidence = line_info_2[1][1]
-                
-                # Compare with engine 3 (LoRA) (if available and has results for this line)
-                if result_engine_3 and result_engine_3[0] and i < len(result_engine_3[0]):
-                    line_info_3 = result_engine_3[0][i]
-                    if line_info_3[1][1] > best_confidence:
-                        best_line_info = line_info_3
-                        best_confidence = line_info_3[1][1]
-                
+        for i in range(max_lines):
+            best_line_info = None
+            best_confidence = -1.0
+
+            # Check engine 1
+            if result_engine_1 and result_engine_1[0] and i < len(result_engine_1[0]):
+                line_info = result_engine_1[0][i]
+                if line_info and len(line_info) == 2 and line_info[1] and len(line_info[1]) == 2:
+                    if line_info[1][1] > best_confidence:
+                        best_confidence = line_info[1][1]
+                        best_line_info = line_info
+
+            # Check engine 2
+            if result_engine_2 and result_engine_2[0] and i < len(result_engine_2[0]):
+                line_info = result_engine_2[0][i]
+                if line_info and len(line_info) == 2 and line_info[1] and len(line_info[1]) == 2:
+                    if line_info[1][1] > best_confidence:
+                        best_confidence = line_info[1][1]
+                        best_line_info = line_info
+
+            # Check engine 3 (LoRA engine)
+            if result_engine_3 and result_engine_3[0] and i < len(result_engine_3[0]):
+                line_info = result_engine_3[0][i]
+                if line_info and len(line_info) == 2 and line_info[1] and len(line_info[1]) == 2:
+                    if line_info[1][1] > best_confidence:
+                        best_confidence = line_info[1][1]
+                        best_line_info = line_info
+            
+            if best_line_info:
                 final_result_for_page.append(best_line_info)
-        
+
         if not final_result_for_page:
             print(f"DEBUG: No valid OCR results found for {img_path}")
             continue
 
-        block_id = 0 # Initialize block_id here
+        block_id = 0
         for line_info in final_result_for_page:
-            print(f"DEBUG: Processing line_info (type: {type(line_info)}): {repr(line_info)}")
-            if not (isinstance(line_info, list) and len(line_info) == 2):
+            # Ensure line_info is in the expected format before processing
+            if not (isinstance(line_info, list) and len(line_info) == 2 and \
+                    isinstance(line_info[0], list) and \
+                    isinstance(line_info[1], tuple) and len(line_info[1]) == 2):
+                print(f"DEBUG: Skipping malformed line_info: {line_info}")
                 continue
 
             bbox = line_info[0]
-            text_info = line_info[1]
-
-            if not (isinstance(bbox, list) and len(bbox) == 4 and
-                    isinstance(text_info, tuple) and len(text_info) == 2):
-                continue
-
-            text, confidence = text_info
+            text, confidence = line_info[1]
 
             # KenLM Correction Framework
-            # This is a placeholder for KenLM correction. In a real scenario,
-            # you would load a KenLM model and apply it to the 'text' variable.
+            # corrected_text = kenlm_corrector.correct(text) # Temporarily disabled due to kenlm installation issues
             corrected_text = text # For now, no correction is applied
             print(f"DEBUG: Original text: {text}, Corrected text: {corrected_text}")
 
@@ -150,8 +249,6 @@ def main():
                         help="Folder to save intermediate images.")
     parser.add_argument("--no-csv", action="store_true",
                         help="Do not output OCR results to CSV file.")
-    parser.add_argument("--lora_path", type=str, default=None,
-                        help="Path to the fine-tuned LoRA model directory.")
     args = parser.parse_args()
 
     if not os.path.exists(args.pdf_path):
@@ -171,7 +268,7 @@ def main():
         output_csv_path = os.path.join(pdf_dir, f"{pdf_name}_ocr_results.csv")
 
     print("Running OCR on extracted images...")
-    run_ocr(image_paths, output_csv_path, args.lora_path)
+    run_ocr(image_paths, output_csv_path)
 
     print("OCR PoC finished.")
 

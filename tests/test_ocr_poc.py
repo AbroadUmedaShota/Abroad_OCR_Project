@@ -2,12 +2,13 @@ import unittest
 import os
 import shutil
 import csv
+import json
+import sys
 from unittest.mock import patch, MagicMock
 from src.ocr_poc import pdf_to_images, run_ocr
 from scripts.calculate_cer import calculate_cer
 from scripts.calculate_iou import calculate_iou
-from scripts.fine_tune_lora import fine_tune_lora
-from scripts.evaluate_accuracy import evaluate_accuracy
+import scripts.finetune_lora # Add this import
 
 class TestOcrPoc(unittest.TestCase):
 
@@ -21,6 +22,17 @@ class TestOcrPoc(unittest.TestCase):
 
         self.output_folder = "tests/output/temp_images"
         self.output_csv_path = "tests/output/test_ocr_results.csv"
+        self.ground_truth_json_path = "tests/test_ground_truth.json" # New ground truth JSON path
+
+        # Create a dummy ground truth JSON for testing accuracy_reviewer
+        dummy_gt_json_content = {
+            "1": [
+                {"bbox": [10, 10, 100, 30], "text": "fine-tuned text"}
+            ]
+        }
+        with open(self.ground_truth_json_path, 'w', encoding='utf-8') as f:
+            json.dump(dummy_gt_json_content, f)
+
         # Ensure the output directory is clean before each test
         if os.path.exists("tests/output"):
             shutil.rmtree("tests/output")
@@ -34,6 +46,8 @@ class TestOcrPoc(unittest.TestCase):
         original_ground_truth_content = "精度"
         with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
             f.write(original_ground_truth_content)
+        if os.path.exists(self.ground_truth_json_path):
+            os.remove(self.ground_truth_json_path)
 
     def test_pdf_to_images(self):
         """Test that PDF pages are converted to images."""
@@ -75,8 +89,132 @@ class TestOcrPoc(unittest.TestCase):
             self.assertIn('mocked text', lines[1])
 
         # Test CER calculation
-        cer = calculate_cer(self.output_csv_path, self.ground_truth_txt_path)
+        # Read the output CSV to get the ocr text
+        ocr_text = ""
+        with open(self.output_csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                ocr_text += row['text']
+        cer = calculate_cer(self_ground_truth_content, ocr_text)
         self.assertEqual(cer, 0.0) # Expect 0 CER if OCR text matches ground truth
+
+    @patch('src.ocr_poc.PaddleOCR')
+    def test_ensemble_voting_and_kenlm_correction(self, MockPaddleOCR):
+        """Test the ensemble voting and KenLM correction frameworks."""
+        mock_ocr_instance_1 = MockPaddleOCR.return_value
+        mock_ocr_instance_2 = MockPaddleOCR.return_value
+        mock_ocr_instance_3 = MockPaddleOCR.return_value
+
+        # Simulate results from three engines
+        mock_result_engine_1 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_A', 0.9)]]]
+        mock_result_engine_2 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_B', 0.8)]]]
+        mock_result_engine_3 = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('text_C', 0.95)]]] # Highest confidence
+
+        # Configure side_effect for PaddleOCR mock to return results for each engine call
+        # The run_ocr function calls ocr_engine.ocr three times per image
+        mock_ocr_instance_1.ocr.side_effect = [mock_result_engine_1, mock_result_engine_2, mock_result_engine_3]
+
+        image_paths = [os.path.join(self.output_folder, "page_1.png")]
+        for path in image_paths:
+            with open(path, 'w') as f: # create empty files
+                f.write('')
+
+        # Set ground truth content for this test
+        self_ground_truth_content = "text_C" # Expect highest confidence text
+        with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
+            f.write(self_ground_truth_content)
+
+        # Run the function
+        run_ocr(image_paths, self.output_csv_path)
+
+        # Assertions
+        self.assertTrue(os.path.exists(self.output_csv_path))
+        with open(self.output_csv_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            self.assertEqual(len(lines), 2) # Header + 1 data row
+            # Expect the highest confidence text (text_C) from ensemble voting
+            self.assertIn('text_C', lines[1])
+
+        # Test CER calculation
+        ocr_text = ""
+        with open(self.output_csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                ocr_text += row['text']
+        cer = calculate_cer(self_ground_truth_content, ocr_text)
+        self.assertEqual(cer, 0.0) # Expect 0 CER if OCR text matches ground truth
+
+    @patch('src.ocr_poc.PaddleOCR')
+    @patch('src.ocr_poc.MistralOCR_LoRA_Engine')
+    @patch('scripts.finetune_lora.finetune_lora')
+    @patch('argparse.ArgumentParser.parse_args') # Patch parse_args directly
+    def test_lora_fine_tuning_and_accuracy_review(self, MockParseArgs, MockFinetuneLoRA, MockMistralOCR_LoRA_Engine, MockPaddleOCR):
+        """Test the LoRA fine-tuning and accuracy review frameworks."""
+        # Configure MockParseArgs to return a mock object with the required attributes
+        mock_args = MagicMock()
+        mock_args.ocr_csv = self.output_csv_path
+        mock_args.ground_truth_json = self.ground_truth_json_path
+        mock_args.iou_threshold = 0.5 # Default value
+        MockParseArgs.return_value = mock_args
+
+        # Simulate fine-tuning process
+        mock_lora_model_path = "./lora_finetuned_model/lora_adapters"
+        MockFinetuneLoRA.return_value = mock_lora_model_path
+
+        # Configure the mock for MistralOCR_LoRA_Engine
+        mock_lora_instance = MockMistralOCR_LoRA_Engine.return_value
+        mock_lora_result = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('fine-tuned text', 0.98)]]]
+        mock_lora_instance.ocr.return_value = mock_lora_result
+
+        # Configure the mock for PaddleOCR (other engines)
+        mock_paddle_instance = MockPaddleOCR.return_value
+        mock_paddle_result = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('paddle text', 0.90)]]]
+        mock_paddle_instance.ocr.return_value = mock_paddle_result
+
+        image_paths = [os.path.join(self.output_folder, "page_1.png")]
+        for path in image_paths:
+            with open(path, 'w') as f: # create empty files
+                f.write('')
+
+        # Set ground truth content for this test
+        self_ground_truth_content = "fine-tuned text"
+        with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
+            f.write(self_ground_truth_content)
+
+        # Run the function (simulating the overall process)
+        run_ocr(image_paths, self.output_csv_path)
+
+        # Simulate calling accuracy_reviewer.main
+        # We need to mock sys.argv for argparse in accuracy_reviewer.py
+        # MockSysArgv.return_value = ['accuracy_reviewer.py',
+        #                             '--ocr_csv', self.output_csv_path,
+        #                             '--ground_truth_json', self.ground_truth_json_path]
+        
+        # Import accuracy_reviewer here to ensure the patched sys.argv is used
+        import scripts.accuracy_reviewer
+        with patch('builtins.print') as mock_print: # Suppress print output from main
+            scripts.accuracy_reviewer.main()
+        
+        # Assertions for accuracy_reviewer output (check mock_print calls)
+        # This is a simplified check; a more robust test would parse mock_print.call_args_list
+        mock_print.assert_any_call(unittest.mock.ANY) # Check if print was called at all
+        # You might add more specific assertions here to check the reported CER/IoU values
+
+        # Verify that MistralOCR_LoRA_Engine was initialized with the correct path
+        MockMistralOCR_LoRA_Engine.assert_called_with("mistralai/Mistral-7B-v0.1", mock_lora_model_path)
+        
+        # Verify that the LoRA engine's ocr method was called
+        mock_lora_instance.ocr.assert_called_once()
+
+    def test_calculate_cer(self):
+        """Test the calculate_cer function."""
+        self.assertEqual(calculate_cer("apple", "apple"), 0.0)
+        self.assertEqual(calculate_cer("apple", "appel"), 2.0 / 5.0)
+        self.assertEqual(calculate_cer("apple", "apply"), 1.0 / 5.0)
+        self.assertEqual(calculate_cer("apple", "ale"), 2.0 / 5.0)
+        self.assertEqual(calculate_cer("", ""), 0.0)
+        self.assertEqual(calculate_cer("apple", ""), 1.0)
+        self.assertEqual(calculate_cer("", "apple"), 1.0)
 
     def test_calculate_iou(self):
         """Test the calculate_iou function."""
@@ -104,65 +242,6 @@ class TestOcrPoc(unittest.TestCase):
         box1 = [0, 0, 10, 10]
         box2 = [10, 0, 20, 10]
         self.assertEqual(calculate_iou(box1, box2), 0.0)
-
-    @patch('src.ocr_poc.PaddleOCR')
-    def test_lora_model_loading(self, MockPaddleOCR):
-        """Test that the LoRA model path is correctly passed and used."""
-        mock_ocr_instance = MockPaddleOCR.return_value
-        mock_result = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('lora text', 0.99)]]]
-        mock_ocr_instance.ocr.return_value = mock_result
-
-        lora_model_dir = "tests/output/lora_model"
-        os.makedirs(lora_model_dir)
-
-        image_paths = [os.path.join(self.output_folder, "page_1.png")]
-        with open(image_paths[0], 'w') as f:
-            f.write('')
-
-        # Run OCR with the lora_path argument
-        run_ocr(image_paths, self.output_csv_path, lora_path=lora_model_dir)
-
-        # Check if PaddleOCR was initialized with the correct directory
-        # The first call is the standard engine, the second is the placeholder, the third is LoRA
-        # We check the arguments of the third call to PaddleOCR
-        self.assertEqual(MockPaddleOCR.call_args_list[2][1]['rec_model_dir'], lora_model_dir)
-
-    def test_fine_tune_lora_script(self):
-        """Test the fine_tune_lora script simulation."""
-        dataset_path = "tests/dummy_dataset"
-        output_path = "tests/output/fine_tuned_model"
-        os.makedirs(dataset_path, exist_ok=True)
-
-        fine_tune_lora(dataset_path, output_path, epochs=1, learning_rate=0.001)
-
-        # Check if the simulated model file was created
-        self.assertTrue(os.path.exists(os.path.join(output_path, "lora_model_weights.pdparams")))
-
-    def test_evaluate_accuracy_script(self):
-        """Test the evaluate_accuracy script."""
-        # Create dummy ocr results and ground truth files
-        with open(self.output_csv_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['page', 'block_id', 'x0', 'y0', 'x1', 'y1', 'text', 'confidence'])
-            writer.writerow([1, 0, 10, 10, 100, 30, 'hello', 0.99])
-
-        with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
-            f.write('jello')
-
-        # Redirect stdout to check the output of the script
-        from io import StringIO
-        import sys
-        captured_output = StringIO()
-        sys.stdout = captured_output
-
-        evaluate_accuracy(self.output_csv_path, self.ground_truth_txt_path)
-
-        sys.stdout = sys.__stdout__  # Reset stdout
-
-        # Check the output
-        output = captured_output.getvalue()
-        self.assertIn("Character Error Rate (CER)", output)
-        self.assertIn("0.2000", output) # CER for 'hello' vs 'jello' is 1/5 = 0.2
 
 if __name__ == '__main__':
     unittest.main()

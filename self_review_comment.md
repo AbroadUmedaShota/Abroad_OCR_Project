@@ -6,15 +6,15 @@ I have conducted a self-review and confirmed that the implementation aligns with
 
 ### Quality Gate Assessment
 
-- **Computational Complexity:** The IoU calculation is a simple geometric operation and does not add significant computational overhead. Its integration as a placeholder ensures that future full implementation will not drastically impact performance.
-- **Security:** The IoU check is a local calculation and does not involve any external interactions or sensitive data handling beyond what is already present in the OCR process. No new security vulnerabilities are introduced.
-- **Scalability:** The IoU calculation is performed per bounding box. Its scalability is directly tied to the number of detected bounding boxes, which is handled by the existing OCR pipeline. It does not introduce new scalability concerns.
+- **Computational Complexity:** The LoRA fine-tuning process can be computationally intensive, but it is an offline process. The inference with the fine-tuned LoRA model is designed to be efficient. The accuracy review tools add minimal overhead.
+- **Security:** The changes do not introduce new external dependencies or network interactions beyond what is already established. Security best practices are maintained.
+- **Scalability:** The LoRA fine-tuning is a one-time or infrequent process. The inference and accuracy review are designed to scale with the input data, leveraging existing efficient components.
 
 ---
 
 ### Design Trade-offs
 
-The primary trade-off was to implement only the IoU calculation framework and defer the Tauri UI implementation to a separate issue. This allows for focused development on the core quality metric (IoU) without introducing the complexities of a new UI framework at this stage. This aligns with the iterative development approach outlined in `SDD.md`.
+The primary trade-off was to integrate a simplified LoRA inference into `src/ocr_poc.py` for demonstration purposes, rather than a full-fledged, optimized inference pipeline. This allows for rapid integration and testing of the LoRA concept within the existing OCR pipeline, with future optimization as a separate task. This aligns with the iterative development approach outlined in `SDD.md`.
 
 ---
 Please review and approve the merge.

@@ -1,1 +1,1 @@
-feat: Conduct Beta Testing, Load Testing, and Prepare Release Candidate
+feat: Integrate DBNet++ and implement CER measurement

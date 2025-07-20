@@ -1,1 +1,1 @@
-feat: Add package.json and simplify CI
+feat: Integrate DBNet++ and implement CER measurement

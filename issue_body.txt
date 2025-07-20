@@ -1,0 +1,6 @@
+This issue covers the tasks for Sprint 2 as defined in SDD.md:
+
+- Integrate DBNet++ for improved layout detection.
+- Implement Character Error Rate (CER) measurement.
+
+This will enhance the accuracy of bounding box detection and provide a metric for OCR quality evaluation.

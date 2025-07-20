@@ -11,11 +11,42 @@
 
 ## セットアップ
 
-(準備中)
+このプロジェクトをローカルでセットアップするには、以下の手順に従ってください。
+
+1.  リポジトリをクローンします。
+    ```bash
+    git clone https://github.com/AbroadUmedaShota/Abroad_OCR_Project.git
+    ```
+2.  プロジェクトディレクトリに移動します。
+    ```bash
+    cd Abroad_OCR_Project
+    ```
+3.  依存関係をインストールします。
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+**CI/CD:**
+
+GitHub Actionsが設定されており、`main`ブランチへのプッシュまたはプルリクエスト時に自動的にビルド、テスト、リントが実行されます。
 
 ## 使い方
 
-(準備中)
+現在、Proof of Concept (PoC) として、コマンドラインインターフェース (CLI) ツールが利用可能です。
+
+**基本的な使い方:**
+
+```bash
+python src/ocr_poc.py [PDFファイルへのパス]
+```
+
+このコマンドは、指定されたPDFファイルを処理し、同じディレクトリに以下のファイルを生成します:
+
+-   `[元のPDF名]_ocr_results.csv`: OCR結果の詳細なCSVファイル。
+
+**オプション:**
+
+-   `--no-csv`: CSVファイルを出力しません。
 
 ## 開発
 

@@ -13,8 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Dummy build
-        run: echo "Building..."
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run OCR PoC
+        run: python src/ocr_poc.py tests/test.pdf
+      - name: Calculate CER
+        run: python scripts/calculate_cer.py tests/test.pdf_ocr_results.csv tests/test.txt
 
   test:
     runs-on: ubuntu-latest

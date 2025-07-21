@@ -34,7 +34,7 @@ OCR処理のワークフローを管理します。
 - **PP-OCRv5**: 印字および手書き文字に対応した汎用OCRエンジン。DBNet++による高精度なテキスト領域検出が統合されています。
 - **Tesseract 5.4 (将来)**: 印字に特化したOCRエンジン。
 <<<<<<< HEAD
-- **Mistral-OCR LoRA (枠組み導入済み)**: 手書き文字に特化したOCRエンジン。
+- **PaddleOCR with LoRA Fine-tuning (Implemented)**: The base PP-OCRv5 model can be fine-tuned using Low-Rank Adaptation (LoRA) to improve accuracy on specific datasets, particularly for handwritten characters.
 =======
 - **Mistral-OCR LoRA (将来)**: 手書き文字に特化したOCRエンジン。
 >>>>>>> origin/main
@@ -57,7 +57,10 @@ OCR結果を元に検索可能なPDFを生成します。
 
 OCR結果のバウンディングボックスの精度を評価します。
 
-## 4. データフロー (PoC)
+### 3.7. Fine-tuning and Evaluation
+
+- **LoRA Fine-tuning**: A dedicated script (`scripts/fine_tune_lora.py`) allows for parameter-efficient fine-tuning of the PaddleOCR model on custom datasets.
+- **Accuracy Evaluation**: A script (`scripts/evaluate_accuracy.py`) provides tools to measure the model's performance using Character Error Rate (CER) and Intersection over Union (IoU), ensuring a quantitative approach to accuracy improvements.
 
 現在のPoCにおけるデータフローは以下の通りです。
 

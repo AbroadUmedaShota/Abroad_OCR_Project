@@ -22,14 +22,25 @@ def pdf_to_images(pdf_path, output_folder="temp_images"):
     doc.close()
     return image_paths
 
-def run_ocr(image_paths, output_csv_path=None):
+def run_ocr(image_paths, output_csv_path=None, lora_path=None):
     """Runs OCR on a list of image paths and returns the structured results."""
     # Initialize PaddleOCR within the function to ensure models are loaded correctly.
     ocr_engine_1 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True)
     # Simulate another OCR engine (e.g., Tesseract or Mistral-OCR LoRA in future)
     ocr_engine_2 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True) # Placeholder for another engine
-    # Placeholder for Mistral-OCR LoRA
-    ocr_engine_3 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True) # Placeholder for LoRA model
+    
+    # Initialize the LoRA model engine
+    if lora_path and os.path.exists(lora_path):
+        print(f"DEBUG: Loading LoRA model from {lora_path}")
+        # In a real implementation, you would load the LoRA weights into the model here.
+        # For PaddleOCR, this might involve setting `rec_model_dir` or similar parameters
+        # if the fine-tuned model is saved in a compatible format.
+        # As a placeholder, we'll initialize a separate engine and print a debug message.
+        ocr_engine_3 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True, rec_model_dir=lora_path)
+        print("DEBUG: LoRA model loaded.")
+    else:
+        print("DEBUG: No LoRA model path provided or path not found. Using standard model.")
+        ocr_engine_3 = PaddleOCR(use_angle_cls=True, lang='japan', use_det=True, use_rec=True) # Fallback to standard model
 
     print("DEBUG: OCR Engines initialized inside run_ocr.")
 
@@ -139,6 +150,8 @@ def main():
                         help="Folder to save intermediate images.")
     parser.add_argument("--no-csv", action="store_true",
                         help="Do not output OCR results to CSV file.")
+    parser.add_argument("--lora_path", type=str, default=None,
+                        help="Path to the fine-tuned LoRA model directory.")
     args = parser.parse_args()
 
     if not os.path.exists(args.pdf_path):
@@ -158,7 +171,7 @@ def main():
         output_csv_path = os.path.join(pdf_dir, f"{pdf_name}_ocr_results.csv")
 
     print("Running OCR on extracted images...")
-    run_ocr(image_paths, output_csv_path)
+    run_ocr(image_paths, output_csv_path, args.lora_path)
 
     print("OCR PoC finished.")
 

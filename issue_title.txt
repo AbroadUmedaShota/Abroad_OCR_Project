@@ -1,1 +1,1 @@
-feat: Implement Ensemble Voting and KenLM Correction
+feat: Implement Tauri UI Alpha and IoU Check

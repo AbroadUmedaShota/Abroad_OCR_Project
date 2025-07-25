@@ -1,10 +1,10 @@
-このIssueでは、OCRの精度をさらに向上させるため、Mistral-OCR LoRAモデルの微調整と、その精度をレビューする機能を実装します。
+このIssueでは、OCRアプリケーションのTauri UIアルファ版を実装し、IoUチェック機能を統合します。
 
 具体的には、以下の作業を行います。
 
-*   Mistral-OCR LoRAモデルの微調整パイプラインを構築します。
-*   微調整されたモデルを `src/ocr_poc.py` に統合します。
-*   精度レビューのためのツールまたはスクリプトを開発します。
-*   `tests/` ディレクトリにLoRAモデルの精度を検証するためのテストケースを追加します。
-*   `SDD.md` の関連セクション（4.3 OCR エンジン Layer, 6. モデル学習・更新）を更新します。
-*   `docs/00_PROJECT_OVERVIEW.md` と `docs/01_ARCHITECTURE.md` を更新し、LoRAモデルの微調整と精度レビューの実装を反映させます。
+*   Tauriプロジェクトを初期化し、基本的なUIフレームワークをセットアップします。
+*   PDFの入力、OCR処理の開始、CSV出力のパス指定など、主要なCLI機能をUIから操作できるようにします。
+*   `scripts/accuracy_reviewer.py` で実装されたIoUチェック機能をUIに統合し、OCR結果の視覚的なフィードバックを提供します。
+*   `SDD.md` の関連セクション（4.1 UI レイヤ、3.6 IoU Check）を更新します。
+*   `docs/00_PROJECT_OVERVIEW.md` と `docs/01_ARCHITECTURE.md` を更新し、Tauri UI と IoU チェックの実装を反映させます。
+*   UI のテストケースを追加します。

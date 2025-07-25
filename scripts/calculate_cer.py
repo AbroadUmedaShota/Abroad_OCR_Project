@@ -1,35 +1,61 @@
-import csv
 
-def calculate_cer(ocr_csv_path, ground_truth_txt_path):
-    """Calculates the Character Error Rate (CER)."""
-    try:
-        with open(ocr_csv_path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            ocr_text = "".join(row['text'] for row in reader)
+def calculate_cer(ground_truth: str, recognized_text: str) -> float:
+    """
+    Calculates the Character Error Rate (CER) between two strings.
+    CER is calculated as (substitutions + insertions + deletions) / total_characters_in_ground_truth.
+    A simple Levenshtein distance based approach is used.
+    """
+    # Simple implementation of Levenshtein distance for CER
+    # This can be replaced with a more robust library like python-Levenshtein for production
 
-        with open(ground_truth_txt_path, 'r', encoding='utf-8') as f:
-            ground_truth_text = f.read().strip()
+    n = len(ground_truth)
+    m = len(recognized_text)
 
-        # Simple CER calculation (Levenshtein distance)
-        if not ground_truth_text:
-            return 1.0 if ocr_text else 0.0
+    if n == 0:
+        return 1.0 if m > 0 else 0.0 # If ground truth is empty, CER is 1.0 if recognized text exists, else 0.0
 
-        dp = [[0] * (len(ocr_text) + 1) for _ in range(len(ground_truth_text) + 1)]
+    dp = [[0] * (m + 1) for _ in range(n + 1)]
 
-        for i in range(len(ground_truth_text) + 1):
-            dp[i][0] = i
-        for j in range(len(ocr_text) + 1):
-            dp[0][j] = j
+    for i in range(n + 1):
+        dp[i][0] = i
+    for j in range(m + 1):
+        dp[0][j] = j
 
-        for i in range(1, len(ground_truth_text) + 1):
-            for j in range(1, len(ocr_text) + 1):
-                cost = 0 if ground_truth_text[i - 1] == ocr_text[j - 1] else 1
-                dp[i][j] = min(dp[i - 1][j] + 1,        # Deletion
-                               dp[i][j - 1] + 1,        # Insertion
-                               dp[i - 1][j - 1] + cost) # Substitution
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            cost = 0 if ground_truth[i-1] == recognized_text[j-1] else 1
+            dp[i][j] = min(dp[i-1][j] + 1,      # Deletion
+                           dp[i][j-1] + 1,      # Insertion
+                           dp[i-1][j-1] + cost) # Substitution
 
-        return dp[len(ground_truth_text)][len(ocr_text)] / len(ground_truth_text)
+    return dp[n][m] / n
 
-    except FileNotFoundError as e:
-        print(f"Error in CER calculation: {e}")
-        return 1.0 # Return max error if a file is not found
+if __name__ == '__main__':
+    # Example Usage:
+    gt = "This is a test"
+    rec = "Thiss is a testt"
+    cer_score = calculate_cer(gt, rec)
+    print(f"Ground Truth: {gt}")
+    print(f"Recognized:   {rec}")
+    print(f"CER: {cer_score:.4f}")
+
+    gt2 = "Hello World"
+    rec2 = "Hell World"
+    cer_score2 = calculate_cer(gt2, rec2)
+    print(f"\nGround Truth: {gt2}")
+    print(f"Recognized:   {rec2}")
+    print(f"CER: {cer_score2:.4f}")
+
+    gt3 = ""
+    rec3 = "abc"
+    cer_score3 = calculate_cer(gt3, rec3)
+    print(f"\nGround Truth: '{gt3}'")
+    print(f"Recognized:   '{rec3}'")
+    print(f"CER: {cer_score3:.4f}")
+
+    gt4 = "abc"
+    rec4 = ""
+    cer_score4 = calculate_cer(gt4, rec4)
+    print(f"\nGround Truth: '{gt4}'")
+    print(f"Recognized:   '{rec4}'")
+    print(f"CER: {cer_score4:.4f}")

@@ -1,3 +1,8 @@
 PyMuPDF
 paddlepaddle
 paddleocr
+Pillow
+python-Levenshtein
+transformers
+peft
+datasets

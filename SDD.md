@@ -83,7 +83,7 @@
 | ---------------------------------- | -------- | --------- | ------------------- |
 | Tesseract 5.4 (finetune `ja_vert`) | 印字横書/縦書  | 文字 + conf | OSS, Fast ICU 連携    |
 | PP‑OCRv5                           | 印字+手書き混在 | 行矩形 + 文字  | PaddlePaddle C++ 推論 |
-| Mistral‑OCR LoRA                   | 手書き特化    | 文字 + conf | 8‑bit 量子化, OpenVINO |
+| Mistral‑OCR LoRA                   | 手書き特化    | 文字 + conf | 8‑bit 量子化, OpenVINO, LoRA Rank‑32 ファインチューニング |
 
 Voting: `score = conf × weight_engine` で最大値採択、空白は独立カウンタ。
 
@@ -142,6 +142,9 @@ for line in detected_lines:
 ### 5.3 KenLM 補正
 
 ```
+# KenLM 補正: 認識結果を言語モデルで補正
+# 候補となるテキスト列 (n-best list) を生成し、KenLM モデルでスコア付け
+# 最もスコアの高い候補を最終結果として採用
 score = log P(sentence|LM)
 Δ = score_best - score_alt  # 対数確率差
 if Δ > τ: choose best else alt
@@ -153,6 +156,23 @@ if Δ > τ: choose best else alt
 
 ## 6. モデル学習・更新
 
+LoRA微調整と精度レビューのプロセスを以下に詳述する。
+
+### 6.1 LoRA微調整パイプライン
+
+1.  **データ準備**: 手書き文字データセット（Kuzushiji-MNIST、社内帳票など）を収集・アノテーションし、モデル入力形式に変換する。
+2.  **ベースモデル選択**: Mistral-OCR (14B) のような大規模な事前学習済みVision-Textモデルを選択する。
+3.  **LoRAアダプターの初期化**: LoRA (Low-Rank Adaptation) 技術を用いて、ベースモデルの特定層（例: `q_proj`, `v_proj`）に低ランクアダプターをアタッチする。ランクは32に設定する。
+4.  **ファインチューニング**: 準備したデータセットでLoRAアダプターのみを学習させる。これにより、少量のデータで効率的にモデルを特定のタスク（手書きOCR）に適合させることができる。
+5.  **モデル保存**: ファインチューニング後、LoRAアダプターの重みのみを保存する。これにより、モデル全体の保存と比較してストレージ要件を大幅に削減できる。
+
+### 6.2 精度レビュープロセス
+
+1.  **OCR実行**: ファインチューニングされたLoRAモデルを含むOCRパイプラインで、テストデータセットに対してOCRを実行する。
+2.  **結果収集**: OCR結果（テキスト、バウンディングボックス、信頼度）を構造化された形式（例: CSV、JSON）で収集する。
+3.  **CER/IoU計算**: Ground Truthデータと比較し、`scripts/calculate_cer.py` および `scripts/calculate_iou.py` を用いて文字認識精度（CER）とバウンディングボックス精度（IoU）を計算する。
+4.  **レポート生成**: 計算された精度指標と詳細な結果を含むレポートを生成する。これにより、モデルのパフォーマンスを評価し、改善点を特定できる。
+
 | フェーズ    | データ                       | 目的     | 目標 CER      |
 | ------- | ------------------------- | ------ | ----------- |
 | LoRA 初期 | Kuzushiji‑MNIST + 5k 社内帳票 | 手書き特化  | 94 %        |
@@ -160,6 +180,7 @@ if Δ > τ: choose best else alt
 | Phase‑B | 20k + data aug            | 最終到達   | 96 % (バッファ) |
 
 DBNet++ は別添 polygon ラベルで IoU 0.85 学習、mAP 0.92 想定。
+
 
 ---
 
@@ -186,8 +207,8 @@ DBNet++ は別添 polygon ラベルで IoU 0.85 学習、mAP 0.92 想定。
 
 | テスト     | 方法                     | 合格基準    |
 | ------- | ---------------------- | ------- |
-| 印字 CER  | `ocr_eval --set print` | ≤ 2 %   |
-| 手書き CER | `ocr_eval --set hand`  | ≤ 5 %   |
+| 印字 CER  | `scripts/calculate_cer.py` を使用 | ≤ 2 %   |
+| 手書き CER | `scripts/calculate_cer.py` を使用  | ≤ 5 %   |
 | IoU     | mean IoU 全行            | ≥ 0.80  |
 | 空白整合    | 空白トークン CER             | ≤ 1 %   |
 | 性能      | 50 p / CPU             | ≤ 5 min |

@@ -33,11 +33,7 @@ OCR処理のワークフローを管理します。
 
 - **PP-OCRv5**: 印字および手書き文字に対応した汎用OCRエンジン。DBNet++による高精度なテキスト領域検出が統合されています。
 - **Tesseract 5.4 (将来)**: 印字に特化したOCRエンジン。
-<<<<<<< HEAD
-- **PaddleOCR with LoRA Fine-tuning (Implemented)**: The base PP-OCRv5 model can be fine-tuned using Low-Rank Adaptation (LoRA) to improve accuracy on specific datasets, particularly for handwritten characters.
-=======
-- **Mistral-OCR LoRA (将来)**: 手書き文字に特化したOCRエンジン。
->>>>>>> origin/main
+- **Mistral-OCR LoRA**: 手書き文字に特化したOCRエンジン。LoRA (Low-Rank Adaptation) を用いてファインチューニングされ、手書き文字認識の精度向上に貢献します。
 - **Weighted Voting Fusion (枠組み導入済み)**: 複数のOCRエンジンの結果を統合し、最終的な認識結果を決定します。
 
 ### 3.4. Pre/Post-Processing
@@ -59,8 +55,10 @@ OCR結果のバウンディングボックスの精度を評価します。
 
 ### 3.7. Fine-tuning and Evaluation
 
-- **LoRA Fine-tuning**: A dedicated script (`scripts/fine_tune_lora.py`) allows for parameter-efficient fine-tuning of the PaddleOCR model on custom datasets.
-- **Accuracy Evaluation**: A script (`scripts/evaluate_accuracy.py`) provides tools to measure the model's performance using Character Error Rate (CER) and Intersection over Union (IoU), ensuring a quantitative approach to accuracy improvements.
+- **LoRA Fine-tuning**: A dedicated script (`scripts/finetune_lora.py`) allows for parameter-efficient fine-tuning of the PaddleOCR model on custom datasets.
+- **Accuracy Evaluation**: A script (`scripts/accuracy_reviewer.py`) provides tools to measure the model's performance using Character Error Rate (CER) and Intersection over Union (IoU), ensuring a quantitative approach to accuracy improvements.
+
+## 4. データフロー (PoC)
 
 現在のPoCにおけるデータフローは以下の通りです。
 
@@ -80,9 +78,10 @@ OCR結果のバウンディングボックスの精度を評価します。
 
 - 検索可能PDF生成機能の実装。
 - GUIの開発。
+
 - 複数のOCRエンジンの統合と結果の統合（Voting）。
 - 高度な前処理・後処理機能の追加。
-- モデル学習・更新パイプラインの構築。
+- **モデル学習・更新パイプラインの構築**: LoRA微調整と精度レビューのプロセスを自動化し、モデルの継続的な改善を可能にします。
 
 ## 7. 品質保証とリリース管理
 

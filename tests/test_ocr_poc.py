@@ -2,8 +2,15 @@ import unittest
 import os
 import shutil
 import csv
-from unittest.mock import patch, MagicMock
-from src.ocr_poc import pdf_to_images, run_ocr
+from unittest.mock import patch
+
+try:
+    import fitz  # type: ignore
+    HAS_PYMUPDF = True
+except ImportError:  # pragma: no cover - optional dependency in tests
+    HAS_PYMUPDF = False
+
+from src.ocr_poc import pdf_to_images, run_ocr, _remove_redundant_cjk_spaces
 from scripts.calculate_cer import calculate_cer
 from scripts.calculate_iou import calculate_iou
 
@@ -33,6 +40,7 @@ class TestOcrPoc(unittest.TestCase):
         with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
             f.write(original_ground_truth_content)
 
+    @unittest.skipUnless(HAS_PYMUPDF, "PyMuPDF is required for pdf_to_images test")
     def test_pdf_to_images(self):
         """Test that PDF pages are converted to images."""
         image_paths = pdf_to_images(self.test_pdf_path, self.output_folder)
@@ -164,6 +172,40 @@ class TestOcrPoc(unittest.TestCase):
         box1 = [0, 0, 10, 10]
         box2 = [10, 0, 20, 10]
         self.assertEqual(calculate_iou(box1, box2), 0.0)
+
+    @patch('src.ocr_poc.PaddleOCR')
+    def test_cjk_space_cleanup_in_results(self, MockPaddleOCR):
+        """Spaces inserted between CJK characters should be removed in outputs."""
+        mock_ocr_instance = MockPaddleOCR.return_value
+        mock_result = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('精 度', 0.99)]]]
+        mock_ocr_instance.ocr.return_value = mock_result
+
+        image_paths = [os.path.join(self.output_folder, "page_1.png")]
+        for path in image_paths:
+            with open(path, 'w') as f:
+                f.write('')
+
+        run_ocr(image_paths, self.output_csv_path)
+
+        with open(self.output_csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]['text'], '精度')
+
+    def test_remove_redundant_cjk_spaces_helper(self):
+        """Directly verify the helper removes only redundant spaces."""
+        self.assertEqual(_remove_redundant_cjk_spaces('精 度'), '精度')
+        self.assertEqual(_remove_redundant_cjk_spaces('精  度'), '精度')
+        self.assertEqual(_remove_redundant_cjk_spaces('テ ス ト'), 'テスト')
+        self.assertEqual(_remove_redundant_cjk_spaces('精 度 。'), '精度。')
+        self.assertEqual(_remove_redundant_cjk_spaces('「 精 度 」'), '「精度」')
+        self.assertEqual(_remove_redundant_cjk_spaces('令 和 元 年'), '令和元年')
+        self.assertEqual(_remove_redundant_cjk_spaces('（ 精 度 ）'), '（精度）')
+        self.assertEqual(_remove_redundant_cjk_spaces('A 精 度 B'), 'A 精度 B')
+        self.assertEqual(_remove_redundant_cjk_spaces('α β'), 'α β')
+        self.assertEqual(_remove_redundant_cjk_spaces('test value'), 'test value')
+        self.assertEqual(_remove_redundant_cjk_spaces(''), '')
 
 if __name__ == '__main__':
     unittest.main()

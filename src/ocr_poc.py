@@ -1,15 +1,77 @@
 import argparse
-import fitz  # PyMuPDF
-from paddleocr import PaddleOCR
-import os
 import csv
+import os
+import re
+import unicodedata
+
+try:
+    import fitz  # PyMuPDF
+except ImportError:  # pragma: no cover - optional dependency during tests
+    fitz = None
+
+try:
+    from paddleocr import PaddleOCR
+except ImportError:  # pragma: no cover - optional dependency during tests
+    PaddleOCR = None
+
 from scripts.kenlm_corrector import KenLMCorrector
+
+
+_CJK_CHAR_RANGES = "\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF66-\uFF9F"
+_CJK_CHAR_PATTERN = re.compile(rf"[{_CJK_CHAR_RANGES}]")
+_NO_SPACE_EAW = {"F", "W"}
+_ADDITIONAL_NO_SPACE_CHARS = {"…", "‥", "―", "—"}
+
+
+def _is_cjk_like(char: str) -> bool:
+    """Return True when the character belongs to scripts that do not use inter-word spacing."""
+    if not char:
+        return False
+    if _CJK_CHAR_PATTERN.match(char):
+        return True
+    if unicodedata.east_asian_width(char) in _NO_SPACE_EAW:
+        return True
+    if char in _ADDITIONAL_NO_SPACE_CHARS:
+        return True
+    return False
+
+
+def _remove_redundant_cjk_spaces(text: str) -> str:
+    """Collapse spaces that were artificially inserted between consecutive CJK characters."""
+    if not text:
+        return text
+    cleaned_chars = []
+    length = len(text)
+    for index, char in enumerate(text):
+        if char in (" ", "\u3000"):
+            prev_char = ""
+            next_char = ""
+
+            for rev_index in range(index - 1, -1, -1):
+                candidate = text[rev_index]
+                if candidate not in (" ", "\u3000"):
+                    prev_char = candidate
+                    break
+
+            for fwd_index in range(index + 1, length):
+                candidate = text[fwd_index]
+                if candidate not in (" ", "\u3000"):
+                    next_char = candidate
+                    break
+
+            if _is_cjk_like(prev_char) and _is_cjk_like(next_char):
+                continue
+        cleaned_chars.append(char)
+    return "".join(cleaned_chars)
 
 def pdf_to_images(pdf_path, output_folder="temp_images"):
     """Converts each page of a PDF into an image."""
     print(f"DEBUG: Starting pdf_to_images for {pdf_path}")
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
+
+    if fitz is None:
+        raise RuntimeError("PyMuPDF (fitz) is required for pdf_to_images but is not installed.")
 
     doc = fitz.open(pdf_path)
     print(f"PDF has {len(doc)} pages.")
@@ -26,6 +88,9 @@ def pdf_to_images(pdf_path, output_folder="temp_images"):
 def run_ocr(image_paths, output_csv_path=None):
     """Runs OCR on a list of image paths and returns the structured results."""
     # Initialize multiple OCR engines for ensemble voting
+    if PaddleOCR is None:
+        raise RuntimeError("PaddleOCR is required for run_ocr but is not installed.")
+
     ocr_engine_1 = PaddleOCR(use_angle_cls=True, lang='japan', det_algorithm='DB++')
     ocr_engine_2 = PaddleOCR(use_angle_cls=True, lang='japan', det_algorithm='DB++') # Placeholder for another engine (e.g., Tesseract)
     ocr_engine_3 = PaddleOCR(use_angle_cls=True, lang='japan', det_algorithm='DB++') # Placeholder for a third engine (e.g., Mistral-OCR LoRA)
@@ -105,6 +170,7 @@ def run_ocr(image_paths, output_csv_path=None):
             # KenLM Correction Framework
             # corrected_text = kenlm_corrector.correct(text) # Temporarily disabled due to kenlm installation issues
             corrected_text = text # For now, no correction is applied
+            corrected_text = _remove_redundant_cjk_spaces(corrected_text)
             print(f"DEBUG: Original text: {text}, Corrected text: {corrected_text}")
 
             # Convert bbox to x0, y0, x1, y1 format

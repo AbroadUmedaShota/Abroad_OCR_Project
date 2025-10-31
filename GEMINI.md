@@ -46,12 +46,14 @@ To maintain the readability of this document, the following writing style is fol
 
 *   **Principle of Communication Language:**
     *   **Documentation:** The primary language for all internal documentation (`GEMINI.md`, `docs/`) is English to ensure maximum performance and global collaboration.
-    *   **User and GitHub Interactions:** All communication with the user (CLI) and content generated on GitHub (Issue titles and bodies, Pull Request titles and bodies, all comments) **must** be in the language the user is currently using. The AI is responsible for adapting its responses and generated content to the user's language, even if internal templates or guidelines are in English.
+    *   **User and GitHub Interactions:** All communication with the user (CLI) and content generated on GitHub (Issue titles and bodies, Pull Request titles and bodies, all comments) **must** be in **Japanese**. The AI is responsible for ensuring all its responses and generated content are in Japanese, even if internal templates or guidelines are in English.
 *   **Issue-Driven Development:** All development and modification work must originate from a GitHub Issue. If a user's instruction is not based on an Issue, the AI will not start the work and will first request or propose the creation of a corresponding Issue.
 *   **Goal-Oriented Action:** Understand not just the superficial instructions in an Issue, but the user's ultimate goal behind them, and act proactively to achieve that goal.
 *   **Absolute Adherence to and Self-Verification of Rules:** `GEMINI.md` is the sole constitution governing the AI's thoughts and actions, and its rules are absolute. Before any action—file modification, command execution, Issue/PR operations, etc.—the AI is obligated to self-verify that the action is in complete agreement with the `GEMINI.md` workflow. If there is any contradiction or uncertainty, it must never execute the action and must first seek confirmation from the user.
 *   **Ensuring Transparency:** All operations performed by the AI, such as file changes and command executions, must be clearly recorded and reported.
 *   **Step-by-Step Execution:** Large changes should be broken down into small steps, and the user's confirmation should be sought at critical decision points.
+*   **Principle of Proactive Dialogue:** The AI must not operate on assumptions. It must treat ambiguity—whether in user requests, code, or documentation—as a signal to initiate a dialogue. It will use clear, concise, and, where possible, option-based questions to confirm its understanding and will briefly state its core assumptions when presenting plans or solutions.
+*   **Principle of Prior Investigation and Contextual Fitness:** Before proposing any changes, creating new Issues, or starting implementation, the AI has an absolute obligation to conduct a thorough investigation of the existing codebase, documentation (`GEMINI.md`, `docs/`), and active Issues. This is to ensure that any proposal is contextually appropriate, avoids duplication, aligns with existing patterns and architectural decisions, and provides genuine value. The AI must explicitly summarize the results of this investigation in its proposals.
 
 ## 3. Project Strategy
 *(This section describes only the "policy" that the project aims for)*
@@ -80,6 +82,13 @@ To maintain the readability of this document, the following writing style is fol
             feature_branch_format: "{issue_number}-{kebab-case-issue-title}"
           ```
         * **Deletion:** Deleted promptly after the Pull Request is merged into the `main` branch.
+    *   **Version Control Exclusion (.gitignore):**
+        *   **Purpose:** To prevent repository bloat and avoid issues caused by environmental differences, it is crucial to exclude unnecessary files from version control. This includes dependencies (e.g., `node_modules/`), build artifacts, log files, and editor-specific settings.
+        *   **AI's Responsibility:**
+            1.  **Check for `.gitignore`:** At the start of any task, the AI must check for the existence of a `.gitignore` file in the project root.
+            2.  **Propose Creation:** If no `.gitignore` file exists, the AI will analyze the project's technology stack (e.g., by checking for `package.json`, `pom.xml`, `requirements.txt`) and propose a standard, technology-specific `.gitignore` template for user approval before creating it.
+            3.  **Propose Updates:** If a `.gitignore` file exists, the AI will assess if the current task introduces any new files or patterns that should be excluded from version control (e.g., new build outputs, log files). If so, it will propose the necessary additions to the user for approval.
+        *   **Handling Sensitive Information:** It is an absolute rule that files containing sensitive information—such as `.env` files, configuration files with API keys, or credentials—**must never** be committed to the repository. The AI is obligated to ensure these files are listed in the `.gitignore` file.
 
 ## 4. Development Workflow
 *(This section describes only the "concrete, reproducible procedures" for executing the strategy. The AI will strictly follow this workflow to autonomously carry out development)*
@@ -90,8 +99,17 @@ The AI does not handle multiple Issues simultaneously. It must complete (merge) 
 ### 4.2. Issue-Driven Development Process
 The following is the series of processes from when an Issue is created until it is closed. The AI and the user will collaborate according to this process.
 
-#### **Principle: Use of Temporary Files for GitHub Interactions**
-When performing operations that send multi-line text on GitHub, such as creating Issues or comments, or creating Pull Requests or review comments, always write the body text to a temporary file and use the `--body-file` option to avoid unexpected errors in command-line arguments (especially with quotation handling in `gemini cli`).
+#### **Principle: Use of Standardized Files for GitHub Interactions**
+When performing operations that send multi-line text on GitHub (e.g., creating issues or pull requests), the AI **must** use a dedicated, standardized file for each action. This prevents errors and ensures consistency. The filenames are defined as follows:
+
+| Action | Filename to Use |
+| :--- | :--- |
+| Issue Creation | `issue_body.md` |
+| Issue Comment | `issue_comment_body.md` |
+| Pull Request Creation | `pr_body.md` |
+| Pull Request Comment | `pr_comment_body.md` |
+
+The AI will write the body content to the appropriate file and then use the `--body-file` option to pass it to the `gh` command. This avoids unexpected errors with command-line arguments and enforces a predictable workflow.
 
 #### **Principle: Recording Approval**
 If user approval is given in the CLI prompt, the AI will post a comment stating "User approval confirmed on the CLI" to the appropriate location to leave a record of the approval. The location is determined by the current phase of the work:
@@ -116,33 +134,37 @@ Issues are created in concrete, clear task units that can be completed in a sing
 #### **Step 2: Implementation Planning and Agreement**
 1.  **Trigger:** The `status: planning` label is applied to the Issue.
 2.  **AI's Response:**
+    *   **1. Conduct Prior Investigation:** Before formulating a plan, the AI must thoroughly investigate the existing codebase, documentation, and issues related to the task.
     *   **Reconfirm Context:** Before starting to create a plan, first reload the latest description of the Issue, related Pull Requests, related comments, and all relevant documents, including `GEMINI.md` and those under `docs/`, to always grasp the latest context.
-    *   Thoroughly read the Issue content, related comments, and linked documents to fully understand not only the superficial request but also the underlying **purpose** and **fundamental problem to be solved**.
-    *   If the purpose is unclear or open to multiple interpretations, ask the user questions to clarify the intent.
-    *   If multiple implementation approaches are possible, concisely present the pros and cons of each and prompt the user to choose the best option.
-    *   Based on the above analysis, and in light of the **documentation strategy defined in Chapter 3**, identify the documents and code that need to be updated along with the implementation or specification changes.
-    *   Break down the necessary tasks (code changes, document updates, etc.) and create a concrete implementation plan that lists all files to be changed.
+    *   **Initial Understanding Check:** Thoroughly read the Issue content to understand the underlying **purpose**. Before diving into a detailed plan, the AI should state its high-level understanding of the issue's goal and ask for confirmation (e.g., "My understanding is that the goal is to refactor the authentication module to use JWTs for better security. Is this correct?").
+    *   **Clarify Ambiguities:** If the purpose or requirements are unclear or open to multiple interpretations, the AI must ask clarifying questions.
+    *   **Propose Options:** If multiple implementation approaches are possible, the AI must concisely present the pros and cons of each as clear options and prompt the user to choose (e.g., "For handling X, we can use Option A or Option B. Option A is more performant, while Option B is simpler. Which do you prefer?").
+    *   Based on the confirmed understanding, identify the documents and code that need to be updated.
+    *   Break down the necessary tasks and create a concrete implementation plan that lists all files to be changed.
     *   After commenting on the Issue with the implementation plan in the following format, tell the user, "I have posted the implementation plan on the GitHub Issue. Please review it and comment with 'Approve', or convey your approval on this CLI. **After approval, please instruct me to proceed to the next step.**" and wait for a response.
         ```markdown
         ### Implementation Proposal
 
         To resolve this Issue, I will proceed with the implementation according to the following plan.
 
+        #### 1. **Pre-investigation Summary**
+        - (In this section, the AI must summarize the findings of its investigation, referencing relevant files, functions, or existing issues.)
+
         **Files to be changed:**
         - `path/to/file1.ext`
         - `path/to/file2.ext`
 
-        #### 1. **Contribution to Project Goals**
+        #### 2. **Contribution to Project Goals**
         - (In this section, briefly explain how the proposed changes contribute to the overall goals of the project)
 
-        #### 2. **Overview of Changes**
+        #### 3. **Overview of Changes**
         - (In this section, briefly explain the overall picture and purpose of the changes)
 
-        #### 3. **Specific Work Content for Each File**
+        #### 4. **Specific Work Content for Each File**
         - `path/to/file1.ext`: (Describe the specific changes for this file)
         - `path/to/file2.ext`: (Describe the specific changes for this file)
 
-        #### 4. **Definition of Done**
+        #### 5. **Definition of Done**
         - [ ] All necessary code changes have been implemented.
         - [ ] New tests have been added to cover the changes.
         - [ ] All existing and new tests pass.
@@ -155,6 +177,20 @@ Issues are created in concrete, clear task units that can be completed in a sing
 3.  **User's Response:**
     *   Review the plan, and if there are no problems, reply with "Approve" to the relevant comment on the GitHub Issue or convey approval on the CLI, and then instruct the AI to proceed with the work.
 
+#### **4.2.0: AI-Initiated Issue Proposal Workflow**
+This workflow governs how the AI proposes and creates new Issues, ensuring they are necessary, well-researched, and approved by the user before creation.
+
+1.  **Trigger:** The AI identifies the need for a new Issue, either based on a direct user instruction that lacks a corresponding Issue or through its own analysis during development (e.g., discovering a necessary refactoring or a new bug).
+2.  **Mandatory Investigation:** Before proposing a new Issue, the AI must conduct a thorough investigation to:
+    *   Confirm that no existing or closed Issue already addresses the problem.
+    *   Analyze the relevant code and documentation to understand the context and potential impact.
+3.  **Draft and Propose:** The AI drafts a concise and descriptive Issue title and body. The body must include a "Pre-investigation Summary" section detailing the findings from the investigation. The AI will then present the drafted title and body to the user in the CLI and ask for approval to create the Issue.
+4.  **User Approval:** The AI must wait for explicit user approval (e.g., "Yes, create it") before proceeding.
+5.  **Issue Creation:** Once approved, the AI will use the `gh issue create` command with the approved title and the standardized `issue_body.md` file to create the Issue on GitHub.
+
+#### **4.2.1. Handling Mid-Implementation Questions**
+If a minor, localized ambiguity arises during the implementation phase (`Step 3`), the AI should not halt the entire process. Instead, it should formulate a clear, multiple-choice or yes/no question and present it to the user for a quick decision. This allows for efficient clarification without the overhead of a full plan revision. For example: "I've encountered a situation where the user's session can expire. Should I (A) redirect to the login page, or (B) show an inline 'session expired' message?"
+
 #### **Step 3: Implementation and Pull Request Creation**
 1.  **Trigger:** The AI, having received instructions from the user to proceed, confirms the user's approval on the GitHub Issue or in the CLI prompt. If approval cannot be confirmed, it will ask the user for approval again.
 2.  **AI's Response:**
@@ -162,11 +198,30 @@ Issues are created in concrete, clear task units that can be completed in a sing
     *   Create a new branch from the `main` branch.
         *   Example: `12-update-development-workflow`
     *   Perform code changes, file creation/editing, test additions, etc., according to the implementation plan.
-        *   **[IMPORTANT] Principle of Prohibiting Unplanned File Changes:** The AI will, in principle, not change any files other than those agreed upon in the implementation plan. If, in the course of implementation, it determines that an unplanned file change is necessary, it will suspend the work, report the reason and the content of the change to the user, and seek approval.
+        *   **[IMPORTANT] Principle of Prohibiting Unplanned File Changes & Workflow for Proposing Them:** The AI will, in principle, not change any files other than those agreed upon in the implementation plan. If, in the course of implementation, it determines that an unplanned file change is necessary, it must follow this specific communication workflow:
+            1.  **Suspend Work:** Immediately suspend the current implementation task.
+            2.  **Report on the Issue:** Post a comment on the active GitHub Issue to report the need for an unplanned change.
+            3.  **Provide Detailed Proposal:** The comment must contain a clear and structured proposal, including:
+                - **File(s) to be Changed:** The full path of the file(s).
+                - **Reason for Change:** A detailed explanation of why the unplanned change is necessary.
+                - **Summary of Proposed Changes:** A concise overview of the modifications.
+                - **Potential Impact:** An assessment of potential side effects, including impacts on other features or the need for additional tests.
+                - **Alternative Solutions:** Any alternative approaches that were considered.
+                - **Request for Approval:** A clear request for the user to review and approve the proposal.
+            4.  **Await Approval:** Do not proceed with any changes (planned or unplanned) until the user explicitly approves the proposal in a comment on the Issue.
     *   **Final Review:** Before committing, the AI must review the "Definition of Done" checklist from the implementation plan and confirm that all items have been completed. The AI will then post a comment on the GitHub Issue with the completed checklist to report that all planned work is finished.
+    *   **Mandatory Quality Gate:** Before committing, the AI **must** execute all test and lint commands. This is a non-negotiable gate.
+        *   The AI must first check for the existence of `docs/03_TESTING_GUIDELINES.md`.
+        *   If it exists, the AI must consult it to get the exact commands for tests, linting, and formatting.
+        *   **If any check fails, the AI is prohibited from proceeding to the commit step.** It must analyze the failure, correct the code, and re-run all checks until they pass successfully. Only after all checks pass may the AI proceed.
     *   Once the work is complete, commit the changes. The commit message will follow the convention defined in `4.5. Commit Message Convention`.
-    *   Create a Pull Request targeting the `main` branch.
-    *   The body of the PR must include a link to the relevant Issue (e.g., `Closes #12`).
+    *   **Push the feature branch and set upstream:** Push the committed changes to the remote repository. This initial push **must** use the `--set-upstream` (or `-u`) flag to establish a tracking relationship between the local and remote branch. This is critical for the stability of subsequent workflow steps.
+        *   **Command:** `git push --set-upstream origin {branch_name}`
+    *   **Create a Pull Request:** To ensure the Pull Request body consistently includes the required issue link, the AI must follow this procedure:
+        1.  Open the `pr_body.md` file.
+        2.  Replace the `#{issue_number}` placeholder with the current issue number and update the description.
+        3.  Create the Pull Request using the prepared `pr_body.md` file.
+            *   **Command:** `gh pr create --title "..." --body-file pr_body.md`
 
 #### **Step 4: Quality Gate and Self-Review**
 1.  **Trigger:** A Pull Request is created.
@@ -177,17 +232,21 @@ Issues are created in concrete, clear task units that can be completed in a sing
         *   **Standard Review Items:**
             1.  **Are the diffs as intended?** Compare the results of `gh pr diff` with the implementation plan.
             2.  **Does the implementation meet the requirements of the Issue?**
-            3.  **Does it comply with the `GEMINI.md` conventions (testing, naming rules, etc.)?**
-            4.  **Is the code sufficiently readable and maintainable?**
-            5.  **Are there any potential side effects from the changes?**
-            6.  **Are there any unplanned file changes?**
-            7.  **Is the documentation update appropriate?** In light of the **Documentation Strategy** and the definitions in `5.1`, is the documentation update appropriate?
+            3.  **Has the 'Definition of Done' been verified and reported in the Issue?**
+            4.  **Have all CI checks passed?**
+            5.  **Does it comply with the `GEMINI.md` conventions (testing, naming rules, etc.)?**
+            6.  **Is the code sufficiently readable and maintainable?**
+            7.  **Are there any potential side effects from the changes?**
+            8.  **Are there any unplanned file changes?**
+            9.  **Is the documentation update appropriate?** In light of the **Documentation Strategy** and the definitions in `5.1`, is the documentation update appropriate?
         *   **Quality Gate Items:**
             1.  **Computational Complexity:** Is the computational complexity of the implemented algorithm appropriate? Is there a more efficient method?
             2.  **Security:** Does the code contain basic vulnerabilities such as SQL injection or XSS?
             3.  **Scalability:** Is the implementation scalable enough to accommodate future feature additions and changes?
     *   **Self-Correction:**
-        *   If a problem is detected during the self-review, the AI will first attempt to correct it itself. It will modify the code locally, amend the commit with `git commit --amend`, and then update the remote branch with `git push --force`.
+        *   If a problem is detected during the self-review (including a CI failure), the AI will first attempt to correct it itself.
+        *   **If a CI check has failed,** the AI **must** analyze the failure logs from the CI system. It will then execute the **exact same test/lint commands locally** to replicate the failure. The AI will then correct the code, confirm the fix by re-running the local checks until they pass, and only then force-push the correction to the PR branch.
+        *   For other issues, it will modify the code locally, amend the commit with `git commit --amend`, and then update the remote branch with `git push --force`.
         *   After correction, it will restart the process from the beginning of this step (checking diffs).
         *   Only if self-correction is difficult will the AI mention the user and consult on the specific problem and solution in a PR comment.
     *   **Request Review:** If no self-correction is needed, or after it is completed, comment on the PR with the results of the self-review in the following format, then tell the user, "Please review on the GitHub PR and comment with 'Approve for merge', or convey your approval on this CLI. **After approval, please instruct me to execute the merge.**" and wait for a response.
@@ -214,34 +273,65 @@ Issues are created in concrete, clear task units that can be completed in a sing
         Please review and approve the merge.
         ```
 3.  **User's Response:**
-    *   Review the content of the PR and the AI's self-review, and if there are no problems, reply with "Approve for merge" to the relevant comment on the GitHub PR or convey approval on the CLI, and then instruct the AI to merge.
+    *   Review the content of the PR and the AI's self-review.
+    *   **If Approved:** If there are no problems, reply with "Approve for merge" to the relevant comment on the GitHub PR or convey approval on the CLI, and then instruct the AI to merge. The process then moves to `Step 5`.
+    *   **If Modifications are Requested:** If the user requests changes, the process moves to `Step 4.1`.
+
+#### Step 4.1: Handling Review Feedback and Modifications
+This step defines the workflow when the user requests modifications during a Pull Request review. The goal is to handle feedback systematically, ensure changes are verified, and clearly communicate the resolution.
+
+1.  **Trigger:** The user provides feedback on the Pull Request (e.g., comments, change requests) that requires code or documentation modifications.
+
+2.  **AI's Response:**
+    *   **Acknowledge and Plan:** The AI acknowledges the feedback. It analyzes the requested changes and creates a concise modification plan. This plan is posted as a reply comment on the PR to ensure clarity and alignment.
+        *   Example Comment: "Thank you for the feedback. I will address the requested changes. Here is my plan:
+1. Refactor the `userService.ts` to handle the null case.
+2. Add a new unit test to cover this scenario.
+I will proceed with these changes."
+    *   **Clarify Ambiguities:** If the user's feedback is unclear, the AI must ask targeted questions to resolve the ambiguity before proceeding with any changes.
+    *   **Implement Changes:** The AI modifies the code and/or documentation on the feature branch as per the plan.
+    *   **Verify Locally:** The AI **must** re-run all relevant quality checks (tests, linting) as defined in `docs/03_TESTING_GUIDELINES.md` to ensure the modifications are correct and have not introduced any regressions.
+    *   **Update Commit:** The AI incorporates the changes into the existing commit using `git commit --amend` to maintain a clean, single-commit history for the feature on the PR.
+    *   **Force Push:** The AI updates the Pull Request by force-pushing the amended commit to the remote branch using `git push --force-with-lease`.
+    *   **Re-request Review:** After successfully pushing the changes, the AI will post a new comment on the PR, indicating that the feedback has been addressed. The process **must** then return to the beginning of `Step 4` for a new, full self-review and user review cycle. The AI will wait for a new "Approve for merge" from the user before proceeding.
+        *   Example Comment: "I have implemented the requested changes and all checks have passed. The PR is ready for another review."
 
 #### **Step 5: Merge and Cleanup**
 1.  **Trigger:** The AI, having received instructions from the user to merge, confirms that the user's "Approve for merge" comment exists on the GitHub PR.
 2.  **AI's Response (Pre-merge Sync):**
-    *   To prevent merge conflicts, the AI first synchronizes the feature branch with the latest `main` branch.
-    1.  Switch to the `main` branch: `git checkout main`
-    2.  Pull the latest changes from the remote `main`: `git pull origin main --rebase`
-    3.  Switch back to the feature branch: `git checkout {feature_branch_name}`
-    4.  Rebase the feature branch onto the updated `main` branch: `git rebase main`
-    5.  Force-push the rebased branch to the remote. This is a safe operation in this context as the branch is not a shared one. `git push --force-with-lease`
+    *   To prevent merge conflicts, the AI first synchronizes the feature branch with the latest `main` branch using a safe and explicit procedure.
+    1.  Fetch the latest state from the remote repository to ensure all local references are up-to-date: `git fetch origin`
+    2.  Switch to the `main` branch: `git checkout main`
+    3.  Safely reset the local `main` branch to exactly match the state of the remote `main` branch. This avoids potential local merge conflicts: `git reset --hard origin/main`
+    4.  Switch back to the feature branch: `git checkout {feature_branch_name}`
+    5.  Rebase the feature branch onto the now-updated `main` branch: `git rebase main`
+    6.  Force-push the rebased branch to the remote. **Crucially, the command must explicitly specify both the remote and the branch name.** This prevents accidental pushes to the wrong destination and works reliably even without a pre-configured upstream branch for push operations.
+        *   **Command:** `git push --force-with-lease origin {feature_branch_name}`
 3.  **AI's Response (Merge Execution and Verification):**
-    *   **Merge Execution:** The AI merges the Pull Request using a squash merge to maintain a clean commit history on the `main` branch. `gh pr merge --squash --delete-branch`
+    *   **Merge Execution:** The AI merges the Pull Request using a squash merge. By default, `gh` creates a commit message using the Pull Request's title as the subject and the body as the detailed description, which helps maintain a clean and informative commit history on the `main` branch. The command used is `gh pr merge --squash --delete-branch`.
     *   **Result Verification:** After executing the merge command, the AI immediately verifies the actual status of the PR by querying the GitHub API. `gh pr view <PR_NUMBER> --json state`
     *   **Post-merge Actions:**
-        *   If the state is `MERGED`, the AI confirms that the related Issue was automatically closed. It then validates the transition against the state machine in `4.4. Label Management`, removes the `status: review` label from the closed Issue, and applies the `status: done` label.
+        *   If the state is `MERGED`, the AI confirms that the related Issue was automatically closed. It then performs the final cleanup and status update:
+        1.  Switch back to the `main` branch to ensure a clean state for the next task.
+            *   **Command:** `git checkout main`
+        2.  Delete the now-merged local feature branch to maintain repository hygiene.
+            *   **Command:** `git branch -d {feature_branch_name}`
+        3.  Validate the transition against the state machine in `4.4. Label Management`, remove the `status: review` label from the closed Issue, and apply the `status: done` label.
         *   If the state is `OPEN` or `CLOSED` (but not merged), the AI reports the failure to the user, provides the error details, and asks for further instructions. It will not attempt to resolve the situation without user guidance.
 
-### 4.3. Testing Workflow
-*   **Purpose of Testing:** To guarantee the quality of the code generated by the AI and to ensure safety against refactoring and feature additions.
-*   **Types of Tests:**
-    *   **Unit Tests:** Verify that individual functions and modules work as expected.
-    *   **Integration Tests:** Verify that when multiple modules are combined, they interact correctly.
-    *   **Performance Tests:** If necessary, implement tests to measure system performance requirements (response time, throughput, etc.).
-*   **Test Coverage:** Aim for high test coverage for major functions and logic, but the coverage value itself is not the goal. What is important is that the core parts of the business logic are sufficiently tested.
-*   **Test Execution:**
-    *   **Local Execution:** After changing the code, the AI runs the relevant tests and confirms that all tests pass before creating a Pull Request.
-    *   **CI Execution (Recommended):** It is recommended to have a system where all tests are automatically run whenever a Pull Request is created or updated. If a CI environment is available, the AI will actively try to set it up and use it.
+### 4.3. Quality Assurance (QA) Workflow
+*   **Core Principles of Quality:** Quality is not an afterthought; it is a core part of the development process. The AI is expected to build quality into the code from the start, not just check for it at the end.
+*   **Testing Principles:**
+    *   **Unit Tests:** All new functions and modules must be accompanied by unit tests that verify their correctness in isolation.
+    *   **Integration Tests:** When changes span multiple modules, integration tests must be added to ensure the modules interact as expected.
+    *   **End-to-End (E2E) Tests:** For features that impact user-facing workflows, E2E tests should be considered to validate the system from the user's perspective.
+*   **Code Quality Principles:**
+    *   **Static Analysis (Linting):** Code must be free of linting errors. This enforces a consistent code style and helps catch potential bugs early.
+    *   **Code Formatting:** Code must be formatted according to the project's standards.
+*   **Automated Quality Gates:**
+    *   **Local Execution:** Before creating a commit, the AI **must** run all defined quality checks (tests, linting, formatting) locally. The successful execution of these checks, guided by `docs/03_TESTING_GUIDELINES.md` (if it exists), is a mandatory prerequisite for creating a Pull Request.
+*   **Project-Specific Guidelines:**
+    *   The specific commands, tools, and configurations for testing and linting for this project should be defined in `docs/03_TESTING_GUIDELINES.md`. The AI must always consult this document if it exists to execute the correct quality checks.
 
 ### 4.4. Label Management
 The AI uses the labels defined in the following YAML to clarify the status and type of Issues and Pull Requests. This YAML block is the **single source of truth** for the issue workflow. The AI must strictly adhere to the transition rules defined by `initial` and `valid_next_statuses`. If a label does not exist when the AI tries to apply it, it will automatically create the label according to this definition before applying it.
@@ -299,6 +389,19 @@ commits:
       - "chore"
 ```
 
+#### 4.5.1. Commit Timing and Granularity
+To maintain a clean and understandable commit history, the AI will adhere to the following principles for commit timing and granularity.
+
+*   **Commit Timing:**
+    *   Commits should be made at logical points in the development process. This typically means committing a complete, self-contained change that fulfills a specific purpose.
+    *   A good time to commit is when a logical unit of work is complete, such as a single feature implementation, a bug fix, or a refactoring task.
+    *   It is encouraged to commit even if the work is not fully complete, as long as it represents a stable checkpoint (e.g., a part of a feature is implemented and passes tests).
+
+*   **Commit Granularity:**
+    *   **Single Responsibility Principle:** Each commit should focus on a single concern. Do not mix unrelated changes in one commit (e.g., a feature addition and a refactoring of unrelated code).
+    *   **Atomic Changes:** A commit should represent an atomic change. This means that the change should be a single, indivisible unit of work.
+    *   **Well-Scoped Changes:** The scope of a commit should be small enough to be easily described in the commit message. If a change is too large or complex to be summarized clearly, it should be broken down into smaller commits.
+
 ## 5. Documentation Strategy and Workflow
 This defines the workflow for the AI to accurately understand the project's specifications and design philosophy and to maintain consistency between development and documentation.
 
@@ -343,50 +446,3 @@ documentation:
   - file: "docs/08_DECISION_LOG.md"
     purpose: "Serves as an Architecture Decision Record (ADR). Logs important architectural and design decisions, their context, and the rationale behind them to ensure transparency in the decision-making process."
     update_trigger: "Whenever a significant architectural or technical design decision is made."
-```
-
-### 5.2. Documentation Update Process
-*   **Principle:** Based on the **Documentation Strategy** defined in Chapter 3, especially the principle of **Documentation as Code (DaC)**, changes to code and updates to documentation are always treated as a single atomic task. If an implementation or specification change affects the content of any of the documents defined in `5.1`, a Pull Request to update the corresponding document must be created.
-*   **Procedure:**
-    1.  At the `Step 2: Implementation Planning and Agreement` stage, the AI identifies the documents that need to be updated along with the code changes and includes the update content in the implementation plan.
-    2.  If the AI determines that a document needs to be updated along with a code change, it first checks if the corresponding document file exists.
-        *   If the file does not exist, it creates a new one with the appropriate file name based on `5.1. Document Structure and Content`.
-        *   If the file exists but is missing necessary content, it adds that content.
-    3.  After user approval, the AI updates the documentation along with the code changes.
-    4.  In the Pull Request review, the appropriateness of the documentation description is also subject to review, just like the correctness of the code.
-
-### 5.3. Specification and Design Documentation Support Workflow
-If the AI determines that the specifications or design that are prerequisites for code implementation are missing from the documentation, it will proactively support their clarification and documentation through the following interactive workflow.
-
-1.  **Trigger (Detection of Missing Information)**
-    *   The AI starts this workflow when, during Issue response, it determines that essential design information for starting implementation (e.g., concrete specifications for a new feature, the flow of complex business logic, API endpoint details, etc.) is not specified in the existing documentation.
-
-2.  **Step 1: Proposal for Documentation**
-    *   The AI temporarily suspends the implementation work and proposes to the user the benefits of documenting, for example, by saying, "Before we start implementing the 〇〇 feature, why don't we document its specifications and design in `docs/01_ARCHITECTURE.md`? This will prevent rework and improve future development efficiency."
-
-3.  **Step 2: Hearing of Functional Requirements**
-    *   If the user agrees, the AI will ask the user about the functional requirements, constraints, expected behavior, etc., necessary for implementation.
-
-4.  **Step 3: Presentation of Design Proposal by AI**
-    *   Based on the heard requirements, the AI will create and present a concrete design proposal. The presented design proposal will include content such as:
-        *   Proposed updates to the relevant architecture diagrams
-        *   Sequence diagrams or flowcharts showing the processing flow
-        *   Database table design and ER diagrams
-        *   API endpoint design (request, response formats, etc.)
-
-5.  **Step 4: Agreement and Issue Creation Proposal**
-    *   The user reviews the presented design proposal and approves it. If modifications are necessary, the design is refined through dialogue.
-    *   Once the design is solidified, the AI proposes to the user that a new `type: documentation` Issue be created to reflect the design content in the documentation.
-    *   If this proposal is approved, the AI will create a new Issue and perform the documentation update work according to the normal `4.2 Issue-Driven Development Process`. This ensures that the implementation and design remain in sync.
-
-### 5.4. Document Scalability
-To maintain the readability and maintainability of documents as they grow in size and complexity, the following file splitting rules are defined.
-
-*   **Trigger for Splitting:** The AI will consider splitting a document and propose it to the user when any of the following criteria are met:
-    *   **Length:** The file exceeds 500 lines.
-    *   **Complexity:** The document contains three or more independent major topics (corresponding to H2 level headings).
-
-*   **Splitting Method:**
-    1.  **Create a Subdirectory:** Create a subdirectory corresponding to the original file name (e.g., `docs/01_ARCHITECTURE.md` -> `docs/architecture/`).
-    2.  **Split and Place Files:** Split the original document into multiple Markdown files based on logical units, and place them in the created subdirectory with sequential numbers and descriptive names (e.g., `01_overview.md`, `02_components.md`, `03_data_flow.md`).
-    3.  **Create a Table of Contents:** Update the original document file (in this example, `docs/01_ARCHITECTURE.md`) to function as a **Table of Contents**, containing links to each of the split files.

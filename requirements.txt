@@ -2,7 +2,7 @@ PyMuPDF
 paddlepaddle
 paddleocr
 Pillow
+<<<<<<< HEAD
 python-Levenshtein
-transformers
-peft
-datasets
+=======
+>>>>>>> origin/main

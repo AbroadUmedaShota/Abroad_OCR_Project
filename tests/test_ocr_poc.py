@@ -2,13 +2,10 @@ import unittest
 import os
 import shutil
 import csv
-import json
-import sys
 from unittest.mock import patch, MagicMock
 from src.ocr_poc import pdf_to_images, run_ocr
 from scripts.calculate_cer import calculate_cer
 from scripts.calculate_iou import calculate_iou
-import scripts.finetune_lora # Add this import
 
 class TestOcrPoc(unittest.TestCase):
 
@@ -22,17 +19,6 @@ class TestOcrPoc(unittest.TestCase):
 
         self.output_folder = "tests/output/temp_images"
         self.output_csv_path = "tests/output/test_ocr_results.csv"
-        self.ground_truth_json_path = "tests/test_ground_truth.json" # New ground truth JSON path
-
-        # Create a dummy ground truth JSON for testing accuracy_reviewer
-        dummy_gt_json_content = {
-            "1": [
-                {"bbox": [10, 10, 100, 30], "text": "fine-tuned text"}
-            ]
-        }
-        with open(self.ground_truth_json_path, 'w', encoding='utf-8') as f:
-            json.dump(dummy_gt_json_content, f)
-
         # Ensure the output directory is clean before each test
         if os.path.exists("tests/output"):
             shutil.rmtree("tests/output")
@@ -46,8 +32,6 @@ class TestOcrPoc(unittest.TestCase):
         original_ground_truth_content = "精度"
         with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
             f.write(original_ground_truth_content)
-        if os.path.exists(self.ground_truth_json_path):
-            os.remove(self.ground_truth_json_path)
 
     def test_pdf_to_images(self):
         """Test that PDF pages are converted to images."""
@@ -143,68 +127,6 @@ class TestOcrPoc(unittest.TestCase):
                 ocr_text += row['text']
         cer = calculate_cer(self_ground_truth_content, ocr_text)
         self.assertEqual(cer, 0.0) # Expect 0 CER if OCR text matches ground truth
-
-    @patch('src.ocr_poc.PaddleOCR')
-    @patch('src.ocr_poc.MistralOCR_LoRA_Engine')
-    @patch('scripts.finetune_lora.finetune_lora')
-    @patch('argparse.ArgumentParser.parse_args') # Patch parse_args directly
-    def test_lora_fine_tuning_and_accuracy_review(self, MockParseArgs, MockFinetuneLoRA, MockMistralOCR_LoRA_Engine, MockPaddleOCR):
-        """Test the LoRA fine-tuning and accuracy review frameworks."""
-        # Configure MockParseArgs to return a mock object with the required attributes
-        mock_args = MagicMock()
-        mock_args.ocr_csv = self.output_csv_path
-        mock_args.ground_truth_json = self.ground_truth_json_path
-        mock_args.iou_threshold = 0.5 # Default value
-        MockParseArgs.return_value = mock_args
-
-        # Simulate fine-tuning process
-        mock_lora_model_path = "./lora_finetuned_model/lora_adapters"
-        MockFinetuneLoRA.return_value = mock_lora_model_path
-
-        # Configure the mock for MistralOCR_LoRA_Engine
-        mock_lora_instance = MockMistralOCR_LoRA_Engine.return_value
-        mock_lora_result = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('fine-tuned text', 0.98)]]]
-        mock_lora_instance.ocr.return_value = mock_lora_result
-
-        # Configure the mock for PaddleOCR (other engines)
-        mock_paddle_instance = MockPaddleOCR.return_value
-        mock_paddle_result = [[[[[10, 10], [100, 10], [100, 30], [10, 30]], ('paddle text', 0.90)]]]
-        mock_paddle_instance.ocr.return_value = mock_paddle_result
-
-        image_paths = [os.path.join(self.output_folder, "page_1.png")]
-        for path in image_paths:
-            with open(path, 'w') as f: # create empty files
-                f.write('')
-
-        # Set ground truth content for this test
-        self_ground_truth_content = "fine-tuned text"
-        with open(self.ground_truth_txt_path, 'w', encoding='utf-8') as f:
-            f.write(self_ground_truth_content)
-
-        # Run the function (simulating the overall process)
-        run_ocr(image_paths, self.output_csv_path)
-
-        # Simulate calling accuracy_reviewer.main
-        # We need to mock sys.argv for argparse in accuracy_reviewer.py
-        # MockSysArgv.return_value = ['accuracy_reviewer.py',
-        #                             '--ocr_csv', self.output_csv_path,
-        #                             '--ground_truth_json', self.ground_truth_json_path]
-        
-        # Import accuracy_reviewer here to ensure the patched sys.argv is used
-        import scripts.accuracy_reviewer
-        with patch('builtins.print') as mock_print: # Suppress print output from main
-            scripts.accuracy_reviewer.main()
-        
-        # Assertions for accuracy_reviewer output (check mock_print calls)
-        # This is a simplified check; a more robust test would parse mock_print.call_args_list
-        mock_print.assert_any_call(unittest.mock.ANY) # Check if print was called at all
-        # You might add more specific assertions here to check the reported CER/IoU values
-
-        # Verify that MistralOCR_LoRA_Engine was initialized with the correct path
-        MockMistralOCR_LoRA_Engine.assert_called_with("mistralai/Mistral-7B-v0.1", mock_lora_model_path)
-        
-        # Verify that the LoRA engine's ocr method was called
-        mock_lora_instance.ocr.assert_called_once()
 
     def test_calculate_cer(self):
         """Test the calculate_cer function."""

@@ -10,7 +10,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "ocr-poc": "python src/ocr_poc.py",
-    "calculate-cer": "python scripts/calculate_cer.py"
+    "calculate-cer": "python scripts/calculate_cer.py",
+    "tauri:build": "tauri build"
   },
   "repository": {
     "type": "git",
@@ -22,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/AbroadUmedaShota/Abroad_OCR_Project/issues"
   },
-  "homepage": "https://github.com/AbroadUmedaShota/Abroad_OCR_Project#readme"
+  "homepage": "https://github.com/AbroadUmedaShota/Abroad_OCR_Project#readme",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.2"
+  }
 }

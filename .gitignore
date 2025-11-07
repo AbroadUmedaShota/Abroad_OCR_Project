@@ -49,3 +49,6 @@ Thumbs.db
 temp_images/
 debug_ocr_result_page_*.txt
 tests/ocr_output.txt
+
+# Node.js
+node_modules/

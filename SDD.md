@@ -46,98 +46,89 @@
 
 ## 4. システム全体構成
 
+### 4.1 現行 PoC のデータフロー
+
 ```text
-┌──────────┐   ┌────────────┐   ┌──────────────┐
-│ UI / CLI   │→ │ PipelineMgr │→ │ PDF Builder  │→ Searchable PDF
-└──────────┘   └────┬───────┘   └──────────────┘
-                     ↓
-           ┌─────────────────────────────┐
-           │ OCR Engine Layer (Plugin)   │
-           │  • Tesseract 5.4 (印字)      │
-           │  • PP‑OCRv5 (印字+手書き)     │
-           │  • Mistral‑OCR LoRA (手書き) │
-           │  • Weighted Voting Fusion   │
-           └─────────────────────────────┘
-                     ↓
-           ┌───────────────────────────┐
-           │ Pre/Post‑Processing       │
-           │  • OpenCV    (deskew etc) │
-           │  • KenLM 5‑gram 修正       │
-           └───────────────────────────┘
+┌────────┐   ┌────────────┐   ┌─────────────┐
+│   CLI    │ → │ PDF→Image  │ → │   OCR Core   │
+└────────┘   └────────────┘   └──────┬──────┘
+                                      │
+                         ┌────────────┴────────────┐
+                         │ Result Aggregator (WVF) │
+                         └────────────┬────────────┘
+                                      │
+                         ┌────────────┴────────────┐
+                         │ KenLM Corrector (予定)  │
+                         └────────────┬────────────┘
+                                      │
+                         ┌────────────┴────────────┐
+                         │ CSV / PDF Exporter (将来)│
+                         └──────────────────────────┘
 ```
 
-### 4.1 UI レイヤ
+PoC 段階では CLI から `src/ocr_poc.py` を実行し、PyMuPDF によるページ画像化と PaddleOCR を用いた 1 エンジン構成で OCR を実施する。結果を CSV へ保存するところまでを自動化する。今後の開発で Weighted Voting Fusion (WVF) と KenLM 補正が順次組み込まれる前提で、コンポーネント境界を明確化した。
 
-* **Tauri + React**: 軽量 (<15 MB) バイナリ化。
-* ドラッグ&ドロップ投入、進捗/残時間表示。
-* 低信頼テキストのインライン編集と即時再埋込。
+### 4.2 コンポーネントの責務
 
-### 4.2 Pipeline Manager
+| コンポーネント | 役割 | 主な入出力 | 実装位置 |
+| --- | --- | --- | --- |
+| CLI (PoC) | PDF パス・オプション受け取り、処理開始 | 引数, ログ | `src/ocr_poc.py:main` |
+| PDF→Image 変換 | PDF ページを PNG に変換 | PDF パス → 画像パス群 | `pdf_to_images` |
+| OCR コア | 画像ごとに OCR 実行し行単位の結果を返却 | 画像パス → `List[LineResult]` | `run_ocr` 内エンジン呼び出し |
+| Result Aggregator | 複数エンジン結果を整列・重み付け投票 | `List[EngineResult]` → `List[LineResult]` | `WeightedVotingAggregator` (新規) |
+| KenLM Corrector | 言語モデルによる後処理 | 生テキスト → 補正テキスト | `scripts/kenlm_corrector.py` |
+| Exporter | CSV と検索可能 PDF 出力 | 正規化結果 → ファイル | CSV: `run_ocr`、PDF: 将来 `PDFExporter` |
 
-* ファイル監視→ジョブキュー実装 (Tokio)。
-* JSON 定義されたパイプライン DAG を解決し並列実行。
+### 4.3 今後導入するモジュールのインターフェース
 
-### 4.3 OCR エンジン Layer
+1. **EngineAdapter Protocol**: PaddleOCR や Tesseract 等を同一インターフェースで扱うための抽象化。
+   ```python
+   class EngineAdapter(Protocol):
+       name: str
+       weight: float
 
-| エンジン                               | 用途       | 出力        | 備考                  |
-| ---------------------------------- | -------- | --------- | ------------------- |
-| Tesseract 5.4 (finetune `ja_vert`) | 印字横書/縦書  | 文字 + conf | OSS, Fast ICU 連携    |
-| PP‑OCRv5                           | 印字+手書き混在 | 行矩形 + 文字  | PaddlePaddle C++ 推論 |
-| Mistral‑OCR LoRA                   | 手書き特化    | 文字 + conf | 8‑bit 量子化, OpenVINO, LoRA Rank‑32 ファインチューニング |
+       def infer(self, image_path: Path) -> List[LineResult]:
+           ...
+   ```
+   既存の PaddleOCR 呼び出しは `PaddleOCREngine` として切り出す。将来追加のエンジンは同じプロトコルを実装するだけでよい。
 
-Voting: `score = conf × weight_engine` で最大値採択、空白は独立カウンタ。
+2. **WeightedVotingAggregator**: エンジンの結果を揃え、重み付き最大値を採択する責務を持つ純粋 Python クラス。スペース挿入や bbox 合成ロジックを統合する。
 
-#### 4.3.1 Mistral‑OCR LoRA のアーキテクチャ
+3. **PostProcessorPipeline**: KenLM 補正や空白整理などを連結する軽量パイプライン。PoC では `_remove_redundant_cjk_spaces` のみ、KenLM 導入後は `KenLMCorrector.correct()` をチェーンする。
 
-* **種別**: Vision → Text の CNN‑Transformer ハイブリッド (Swin‑x Patch + causal decoder)
-* **パイプライン位置**: DBNet++ が抽出した *行画像* に対し単体で文字認識
-* **学習方針**: 8‑bit 量子化済み Mistral‑OCR (14B) を LoRA Rank‑32 でファインチューニング
-* **入出力**: 入力 224×N PNG、出力 (UTF‑8 文字列, confidence float)
-* **役割**: 手書き区間で Tesseract が低信頼なブロックの補完を担う
+### 4.4 GUI / Pipeline Manager の位置付け
 
-#### 4.3.2 異粒度出力の正規化 (文字 vs 行)
+GUI (Tauri + React) や監視ベースの Pipeline Manager はフェーズ 2 以降に追加する。PoC の CLI で動作するモジュールを独立させることで、GUI 化時には UI から CLI と同一 API を呼び出すだけで済む。
 
-| ステップ          | 内容                                            |
-| ------------- | --------------------------------------------- |
-| 1. Glyph 切り出し | 行ベース出力を文字境界で分割し文字粒度へ                          |
-| 2. 信頼度スケーリング  | 各エンジン conf を **Z‑score 正規化** (ページ単位) し共通スケール化 |
-| 3. スペース挿入     | CTC blank → 空白トークンへマッピングし欠損補償                 |
-| 4. Voting     | 正規化 `conf × weight` 比較で最終選択                   |
+### 4.5 PDF Builder (将来)
 
-### 4.4 Pre/Post 処理
-
-* **前処理**: bilateral→adaptive threshold→deskew→denoise。
-* **後処理**: KenLM 5‑gram + domain 辞書。空白トークンを語彙化。
-
-### 4.5 PDF Builder
-
-* `pikepdf` で元 PDF を複製。
-* 各行の bbox を PDF user‑space 座標に変換し Invisible‑Text レイヤ挿入。
-* `confidence < 0.85` の行は赤ハイライト注釈を埋め込む。
+検索可能 PDF 生成は次フェーズで `PdfOverlayWriter` クラスとして実装し、CSV 生成と同じ構造化データを入力として扱う。Invisible-Text レイヤと低信頼ハイライト挿入要件は維持する。
 
 ---
 
 ## 5. アルゴリズム詳細
 
-### 5.1 レイアウト検出 (DBNet++)
+### 5.1 レイアウト検出
 
-* 入力: 768×768 画像タイル、stride 32。
-* 出力ポリゴンを最小外接矩形化→bbox。
-* IoU < 0.8 行は再推論 (スケール+15 %)。
+PP‑OCRv5 が同梱する DB++ 検出器を使用し、行レベルのクアドラティック bbox を取得する。`run_ocr` では PaddleOCR の戻り値（4 点ポリゴン + テキスト + 信頼度）を標準化して扱う。将来的に別エンジンを加える際は、Adapter 層で以下の構造体に変換する。
 
-### 5.2 Voting & スペース保持
-
-> **備考**: `preserve_spaces` は Voting 後段で実行し、最終採択テキストに空白トークン列を再挿入してエンジン間の空白欠損差を吸収する。
-
-```pseudo
-for line in detected_lines:
-    results = []
-    for engine in engines:
-        text, conf = engine.recognize(line)
-        results.append((text, conf * weight[engine]))
-    best = max(results, key=lambda x: x[1])
-    merged_text = preserve_spaces(best.text)
+```python
+LineResult = TypedDict(
+    "LineResult",
+    {
+        "bbox": Tuple[Point, Point, Point, Point],
+        "text": str,
+        "confidence": float,
+    },
+)
 ```
+
+### 5.2 Weighted Voting Fusion とスペース保持
+
+1. **行アライメント**: ページ単位で各エンジンの行数を比較し、bbox の IoU が 0.7 以上のものを同一行と見なす。ポリゴン数が一致しない場合は x 座標で近傍探索を行う。
+2. **スコア正規化**: `score = sigmoid((conf - μ_engine) / σ_engine)` でエンジンごとの信頼度を正規化し、重み付きスコア `score × weight_engine` を算出する。μ, σ はページ内の信頼度分布から算出する。
+3. **投票**: 各行に対し最も高スコアのテキストを採択し、低位候補は `alternatives` 配列として保持する（KenLM 用）。
+4. **スペース整理**: `_remove_redundant_cjk_spaces` を適用し、CJK 連続区間に挿入された不要スペースを除去する。同時に、エンジン間で空白が欠落している場合は補完する。
 
 ### 5.3 KenLM 補正
 
@@ -205,15 +196,17 @@ DBNet++ は別添 polygon ラベルで IoU 0.85 学習、mAP 0.92 想定。
 
 ## 9. テスト計画
 
-| テスト     | 方法                     | 合格基準    |
-| ------- | ---------------------- | ------- |
-| 印字 CER  | `scripts/calculate_cer.py` を使用 | ≤ 2 %   |
-| 手書き CER | `scripts/calculate_cer.py` を使用  | ≤ 5 %   |
-| IoU     | mean IoU 全行            | ≥ 0.80  |
-| 空白整合    | 空白トークン CER             | ≤ 1 %   |
-| 性能      | 50 p / CPU             | ≤ 5 min |
-| メモリ     | Peak RSS               | ≤ 8 GB  |
-| 長期試験    | 隔離LAN 72 h             | クラッシュ 0 |
+| テスト               | 方法                                           | 合格基準            |
+| ------------------ | -------------------------------------------- | ----------------- |
+| 印字 CER            | `scripts/calculate_cer.py` を使用                    | ≤ 2 %            |
+| 手書き CER           | `scripts/calculate_cer.py` を使用                    | ≤ 5 %            |
+| 行検出 IoU          | PaddleOCR 出力と GT の mean IoU                    | ≥ 0.80          |
+| Weighted Voting 単体 | モックエンジン結果でユニットテスト (`tests/test_ocr_poc.py`) | 想定テキストへ一致 |
+| KenLM 補正           | Dev セットで before/after CER を比較                 | CER 改善 ≥ 0.3 pt |
+| 空白整合             | 空白トークン CER                                   | ≤ 1 %            |
+| 性能                 | 50 p / CPU                                       | ≤ 5 min         |
+| メモリ               | Peak RSS                                         | ≤ 8 GB          |
+| 長期試験             | 隔離LAN 72 h                                      | クラッシュ 0       |
 
 自動評価スクリプトは `tests/` に配置し GitHub Actions で実行。
 
@@ -228,10 +221,10 @@ DBNet++ は別添 polygon ラベルで IoU 0.85 学習、mAP 0.92 想定。
 ### 9.2. 負荷試験計画
 
 - **目的**: 大量データ処理時のパフォーマンス、リソース消費、安定性の評価。
-- **ツール**: Pythonの`multiprocessing`モジュールと`time`モジュールを用いたカスタムスクリプト。
-- **シナリオ**: 100ページ以上のPDFファイルを連続して処理。
-- **評価指標**: ページあたりの処理時間、CPU/メモリ使用率、エラー発生率。
-- **合格基準**: 50ページ/CPUコアあたり5分以内、メモリ使用量8GB以下、エラー発生率0%。
+- **ツール**: Python の `multiprocessing` + CLI を組み合わせたバッチスクリプト。
+- **シナリオ**: 100 ページ以上の PDF を連続処理し、投票・KenLM が有効な状態で計測。
+- **評価指標**: ページあたりの処理時間、CPU/メモリ使用率、失敗ジョブ数。
+- **合格基準**: 50 ページ/CPU コアあたり 5 分以内、メモリ使用量 8 GB 以下、失敗ジョブ 0。
 
 ---
 
@@ -252,15 +245,15 @@ DBNet++ は別添 polygon ラベルで IoU 0.85 学習、mAP 0.92 想定。
 
 ## 11. 開発ロードマップ
 
-| Sprint | 期間     | マイルストーン                        |
-| ------ | ------ | ------------------------------ |
-| 0      | W‑1    | リポジトリ/CI 雛形作成                  |
-| 1      | W1‑2   | PDF → image → PP‑OCRv5 CLI PoC |
-| 2      | W3‑4   | DBNet++ 統合 + CER 計測            |
-| 3      | W5‑6   | Ensemble Voting + KenLM 補正     |
-| 4      | W7‑8   | LoRA 微調整 + 精度レビュー              |
-| 5      | W9‑10  | Tauri UI α版・IoU チェック実装         |
-| 6      | W11‑12 | βテスト・負荷試験・リリース候補               |
+| Sprint | 期間     | マイルストーン                                           |
+| ------ | ------ | ------------------------------------------------- |
+| 0      | W‑1    | リポジトリ/CI 雛形作成、基本的な lint / test 導入                 |
+| 1      | W1‑2   | PDF → Image → PaddleOCR CLI PoC、CSV 出力整備            |
+| 2      | W3‑4   | EngineAdapter & WeightedVotingAggregator 実装、単体テスト追加 |
+| 3      | W5‑6   | KenLM 補正パイプライン導入、n-best 生成 & 評価                  |
+| 4      | W7‑8   | PDF Overlay Writer プロトタイプ、検索可能 PDF β版              |
+| 5      | W9‑10  | Tauri UI α版、ジョブ管理 / 進捗表示                               |
+| 6      | W11‑12 | 量産データでの検証、負荷試験・リリース候補                          |
 
 ---
 

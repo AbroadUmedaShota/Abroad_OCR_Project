@@ -2,23 +2,56 @@ import argparse
 import csv
 import json
 from collections import defaultdict
+from typing import Dict, List
 from scripts.calculate_cer import calculate_cer
 from scripts.calculate_iou import calculate_iou
+
+REQUIRED_OCR_COLUMNS = {"page", "block_id", "x0", "y0", "x1", "y1", "text", "confidence"}
+
 
 def load_ocr_results(csv_path):
     """
     Loads OCR results from a CSV file.
     Expected CSV format: page,block_id,x0,y0,x1,y1,text,confidence
     """
-    results = defaultdict(list)
-    with open(csv_path, 'r', newline='', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            page = int(row['page'])
-            bbox = [float(row['x0']), float(row['y0']), float(row['x1']), float(row['y1'])]
-            text = row['text']
-            confidence = float(row['confidence'])
-            results[page].append({'bbox': bbox, 'text': text, 'confidence': confidence})
+    results: Dict[int, List[dict]] = defaultdict(list)
+
+    try:
+        with open(csv_path, 'r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+
+            if reader.fieldnames is None:
+                raise RuntimeError("OCR結果CSVのヘッダーが読み取れませんでした。")
+
+            missing_columns = REQUIRED_OCR_COLUMNS.difference(reader.fieldnames)
+            if missing_columns:
+                missing = ", ".join(sorted(missing_columns))
+                raise RuntimeError(f"OCR結果CSVに必要な列がありません: {missing}")
+
+            for row in reader:
+                try:
+                    page = int(row['page'])
+                    bbox = [
+                        float(row['x0']),
+                        float(row['y0']),
+                        float(row['x1']),
+                        float(row['y1'])
+                    ]
+                    text = row['text']
+                    confidence = float(row['confidence'])
+                except KeyError as exc:
+                    raise RuntimeError(
+                        f"OCR結果CSVの行から必須列 '{exc.args[0]}' を取得できませんでした。"
+                    ) from exc
+                except ValueError as exc:
+                    raise RuntimeError(
+                        f"OCR結果CSVの数値が不正です: {exc}"
+                    ) from exc
+
+                results[page].append({'bbox': bbox, 'text': text, 'confidence': confidence})
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"OCR結果CSVファイルが見つかりません: {csv_path}") from exc
+
     return results
 
 def load_ground_truth(json_path):
@@ -26,11 +59,35 @@ def load_ground_truth(json_path):
     Loads ground truth data from a JSON file.
     Expected JSON format: {"page_num": [{"bbox": [x0,y0,x1,y1], "text": "ground truth text"}, ...]}
     """
-    with open(json_path, 'r', encoding='utf-8') as f:
-        gt_data = json.load(f)
-    
-    # Convert string keys to int for page numbers
-    return {int(k): v for k, v in gt_data.items()}
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            try:
+                gt_data = json.load(f)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(
+                    f"正解データJSONの形式が不正です: {exc}"
+                ) from exc
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"正解データJSONファイルが見つかりません: {json_path}") from exc
+
+    if not isinstance(gt_data, dict):
+        raise RuntimeError("正解データJSONはページ番号をキーに持つオブジェクトである必要があります。")
+
+    try:
+        converted = {int(k): v for k, v in gt_data.items()}
+    except ValueError as exc:
+        raise RuntimeError(f"正解データJSONのページキーを数値に変換できません: {exc}") from exc
+
+    for page, items in converted.items():
+        if not isinstance(items, list):
+            raise RuntimeError(f"ページ {page} の正解データが配列ではありません。")
+        for item in items:
+            if not isinstance(item, dict):
+                raise RuntimeError(f"ページ {page} の正解データ項目がオブジェクトではありません。")
+            if 'bbox' not in item or 'text' not in item:
+                raise RuntimeError(f"ページ {page} の正解データ項目に 'bbox' または 'text' がありません。")
+
+    return converted
 
 def match_boxes(gt_boxes, ocr_boxes, iou_threshold=0.5):
     """
@@ -69,8 +126,11 @@ def main():
                         help="IoU threshold for matching bounding boxes.")
     args = parser.parse_args()
 
-    ocr_results = load_ocr_results(args.ocr_csv)
-    ground_truth = load_ground_truth(args.ground_truth_json)
+    try:
+        ocr_results = load_ocr_results(args.ocr_csv)
+        ground_truth = load_ground_truth(args.ground_truth_json)
+    except RuntimeError as error:
+        raise SystemExit(str(error))
 
     total_cer = 0
     total_iou = 0
